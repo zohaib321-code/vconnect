@@ -1,0 +1,73 @@
+const mongoose = require('mongoose');
+
+const Schema = mongoose.Schema;
+
+const opportunitySchema = new Schema({
+    userId: {
+        type: Schema.Types.ObjectId, // ObjectId to reference the User model
+        ref: 'User', // Reference to the 'User' model (poster)
+        required: true
+    },
+    postMedia:{
+        type:String,
+        required:true
+    },
+    title: {
+        type: String,
+        required: true
+    },
+    description: {
+        type: String,
+        required: true
+    },
+    purpose: {
+        type: String,
+        required: true
+    },
+    role: {
+        type: String,
+        required: true
+    },
+    additional_details: {
+        type: String,
+        required: true
+    },
+    location: {
+        address: {
+            type: String,
+            required: false
+        },
+        pin: {
+            type: String, // location pin for maps app
+            required: false
+        },
+
+    },
+    skillsRequired: {
+        type: [String], // Array of skills needed for the opportunity
+        required: false
+    },
+    opportunityType: {
+        type: String,
+        enum: ['InPerson', 'Virtual'], // Types of opportunities
+        required: true
+    },
+    dateTime: [{
+        date: {
+            type: Date, // Date field for the specific day
+            required: true
+        },
+        startTime: {
+            type: String, // Start time (e.g., "12:00 AM")
+            required: true
+        },
+        endTime: {
+            type: String, // End time (e.g., "5:00 PM")
+            required: true
+        }
+    }],
+}, {timestamps: true}); // Adding timestamps
+
+const Opportunity = mongoose.model('Opportunity', opportunitySchema);
+
+module.exports = Opportunity;
