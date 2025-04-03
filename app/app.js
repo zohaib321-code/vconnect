@@ -1,6 +1,6 @@
 const express= require('express');
 const app=express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 const mongoose= require('mongoose');
 const cors = require('cors');  // Import CORS middleware
 
@@ -13,7 +13,7 @@ const dburi = "mongodb+srv://vcon_user:vcon_pass@vconnect.8ot7y.mongodb.net/vCon
 mongoose.connect(dburi, { useNewUrlParser: true, useUnifiedTopology: true })
   .then((result) => {
     console.log("Connected to MongoDB");
-    app.listen(port, () => {
+    app.listen(port, "0.0.0.0", () => {
       console.log(`Server is now running at http://localhost:${port}`);
     });
   })
