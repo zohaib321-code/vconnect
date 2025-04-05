@@ -8,11 +8,7 @@ const user_profileSchema = new Schema({
         ref: 'User', // Reference to the 'User' model
         required: true
     },
-    firstName: {
-        type: String,
-        required: true
-    },
-    lastName: {
+    Name: {
         type: String,
         required: true
     },
