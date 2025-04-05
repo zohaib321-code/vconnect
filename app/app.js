@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const UserProfile = require('../models/userProfile');  // Import the UserProfile model
 const User = require('../models/user');  // Assuming you have a User model
-const Opportunity = require('../models/opportunity');
+const Opportunity = require('../models/opportunity');  // Assuming you have an Opportunity model
 const app = express();
 const port = 3000;
 
@@ -45,7 +45,8 @@ app.post('/userProfile', (req, res) => {
   } = req.body; // Extract data from request body
 
   const userProfile = new UserProfile({
-    userId, Name, bio, profilePicture, skills, interests, isBloodDonor, bloodGroup
+    _id: userId,  // Set _id to the same as the userId
+    Name, bio, profilePicture, skills, interests, isBloodDonor, bloodGroup
   });
 
   userProfile.save()
@@ -80,7 +81,7 @@ app.get('/userProfile', (req, res) => {
 app.get('/userProfile/:userId', (req, res) => {
   const { userId } = req.params;
   
-  UserProfile.findOne({ userId: userId })
+  UserProfile.findOne({ _id: userId }) // Querying using _id instead of userId
     .then((result) => {
       if (!result) {
         return res.status(404).send('User profile not found');
@@ -101,7 +102,7 @@ app.put('/userProfile/:userId', (req, res) => {
   } = req.body;
 
   UserProfile.findOneAndUpdate(
-    { userId: userId },
+    { _id: userId }, // Use _id to find and update
     { Name, bio, profilePicture, skills, interests, isBloodDonor, bloodGroup },
     { new: true } // Return the updated document
   )
@@ -124,7 +125,7 @@ app.put('/userProfile/:userId', (req, res) => {
 app.delete('/userProfile/:userId', (req, res) => {
   const { userId } = req.params;
   
-  UserProfile.findOneAndDelete({ userId: userId })
+  UserProfile.findOneAndDelete({ _id: userId }) // Use _id to find and delete
     .then((result) => {
       if (!result) {
         return res.status(404).send('User profile not found');
