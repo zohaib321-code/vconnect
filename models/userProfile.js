@@ -10,7 +10,7 @@ const user_profileSchema = new Schema({
     },
     Name: {
         type: String,
-        required: true
+        required: false
     },
     bio: {
         type: String,
