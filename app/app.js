@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const UserProfile = require('../models/userProfile');  // Import the UserProfile model
 const User = require('../models/user');  // Assuming you have a User model
-
+const Opportunity = require('../models/opportunity');
 const app = express();
 const port = 3000;
 
