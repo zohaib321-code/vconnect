@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const user_profileSchema = new Schema({
-    userId: {
+    _id: {
         type: Schema.Types.ObjectId, // ObjectId to reference the User model
         ref: 'User', // Reference to the 'User' model
         required: true
