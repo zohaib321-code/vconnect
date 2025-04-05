@@ -1,26 +1,28 @@
 const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const UserProfile = require('../models/userProfile');  // Import the UserProfile model
+const User = require('../models/user');  // Assuming you have a User model
+
 const app = express();
 const port = 3000;
-const mongoose = require('mongoose');
-const cors = require('cors');  // Import CORS middleware
 
-const User = require('../models/user');
-const Opportunity = require('../models/opportunity');
+// Middleware
+app.use(cors());
+app.use(express.json());  // Middleware to parse incoming JSON data
 
 // Connect to MongoDB
 const dburi = "mongodb+srv://vcon_user:vcon_pass@vconnect.8ot7y.mongodb.net/vConnect?retryWrites=true&w=majority&appName=vConnect";
 mongoose.connect(dburi, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then((result) => {
+  .then(() => {
     console.log("Connected to MongoDB");
     app.listen(port, () => {
       console.log(`Server is now running at http://localhost:${port}`);
     });
   })
-  .catch((err) => console.log(err));
-
-// Middleware
-app.use(cors());
-app.use(express.json());  // Middleware to parse incoming JSON data
+  .catch((err) => {
+    console.log(err);
+  });
 
 // Logger middleware
 app.use((req, res, next) => {
@@ -33,7 +35,109 @@ app.use((req, res, next) => {
 
 // Test route
 app.get('/', (req, res) => {
-  console.log("bruh")
+  res.send("Welcome to the backend!");
+});
+
+// POST route to create a new user profile
+app.post('/userProfile', (req, res) => {
+  const {
+    userId, Name, bio, profilePicture, skills, interests, isBloodDonor, bloodGroup
+  } = req.body; // Extract data from request body
+
+  const userProfile = new UserProfile({
+    userId, Name, bio, profilePicture, skills, interests, isBloodDonor, bloodGroup
+  });
+
+  userProfile.save()
+    .then((result) => {
+      res.status(201).json({
+        message: "User profile created successfully",
+        userProfile: result
+      });
+    })
+    .catch((err) => {
+      console.log(err);
+      res.status(500).json({
+        message: "Error saving user profile",
+        error: err
+      });
+    });
+});
+
+// GET route to fetch all user profiles
+app.get('/userProfile', (req, res) => {
+  UserProfile.find()
+    .then((result) => {
+      res.status(200).json(result);
+    })
+    .catch((err) => {
+      console.log(err);
+      res.status(500).send('Error fetching user profiles');
+    });
+});
+
+// GET route to fetch a user profile by userId
+app.get('/userProfile/:userId', (req, res) => {
+  const { userId } = req.params;
+  
+  UserProfile.findOne({ userId: userId })
+    .then((result) => {
+      if (!result) {
+        return res.status(404).send('User profile not found');
+      }
+      res.status(200).json(result);
+    })
+    .catch((err) => {
+      console.log(err);
+      res.status(500).send('Error fetching user profile');
+    });
+});
+
+// PUT route to update an existing user profile
+app.put('/userProfile/:userId', (req, res) => {
+  const { userId } = req.params;
+  const {
+    Name, bio, profilePicture, skills, interests, isBloodDonor, bloodGroup
+  } = req.body;
+
+  UserProfile.findOneAndUpdate(
+    { userId: userId },
+    { Name, bio, profilePicture, skills, interests, isBloodDonor, bloodGroup },
+    { new: true } // Return the updated document
+  )
+    .then((result) => {
+      if (!result) {
+        return res.status(404).send('User profile not found');
+      }
+      res.status(200).json({
+        message: 'User profile updated successfully',
+        userProfile: result
+      });
+    })
+    .catch((err) => {
+      console.log(err);
+      res.status(500).send('Error updating user profile');
+    });
+});
+
+// DELETE route to remove a user profile by userId
+app.delete('/userProfile/:userId', (req, res) => {
+  const { userId } = req.params;
+  
+  UserProfile.findOneAndDelete({ userId: userId })
+    .then((result) => {
+      if (!result) {
+        return res.status(404).send('User profile not found');
+      }
+      res.status(200).json({
+        message: 'User profile deleted successfully',
+        userProfile: result
+      });
+    })
+    .catch((err) => {
+      console.log(err);
+      res.status(500).send('Error deleting user profile');
+    });
 });
 
 // POST route to create a user
@@ -104,7 +208,7 @@ app.delete('/user/:id', (req, res) => {
     })
     .catch((err) => {
       console.log(err);
-      res.status(500).send('Error fetching user');
+      res.status(500).send('Error deleting user');
     });
 });
 
