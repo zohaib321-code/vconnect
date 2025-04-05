@@ -80,7 +80,7 @@ app.get('/userProfile', (req, res) => {
 // GET route to fetch a user profile by userId
 app.get('/userProfile/:userId', (req, res) => {
   const { userId } = req.params;
-  
+
   UserProfile.findOne({ _id: userId }) // Querying using _id instead of userId
     .then((result) => {
       if (!result) {
@@ -124,7 +124,7 @@ app.put('/userProfile/:userId', (req, res) => {
 // DELETE route to remove a user profile by userId
 app.delete('/userProfile/:userId', (req, res) => {
   const { userId } = req.params;
-  
+
   UserProfile.findOneAndDelete({ _id: userId }) // Use _id to find and delete
     .then((result) => {
       if (!result) {
@@ -274,5 +274,78 @@ app.get('/opportunity/:id', (req, res) => {
     .catch((err) => {
       console.log(err);
       res.status(500).send('Error fetching opportunity');
+    });
+});
+
+
+app.get('/authWithMail', (req, res) => {
+  const { email, password } = req.body;
+
+  // Find the user by email and password
+  User.findOne({ email: email, password: password })
+    .then(user => {
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      // Only send the _id in the response
+      res.status(200).json({ message: 'User authenticated successfully', userId: user._id });
+    })
+    .catch(err => {
+      console.error(err);
+      res.status(500).json({ message: 'Internal server error' });
+    });
+});
+
+app.get('/authWithPhone', (req, res) => {
+  const { phone } = req.body;
+
+  // Find the user by email and password
+  User.findOne({phone: phone})
+    .then(user => {
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      // Only send the _id in the response
+      res.status(200).json({ message: 'User found', userId: user._id });
+    })
+    .catch(err => {
+      console.error(err);
+      res.status(500).json({ message: 'Internal server error' });
+    });
+});
+
+app.post('/checkMail', (req, res) => {
+  const { email } = req.body;
+
+  // Find the user by email and password
+  User.findOne({ email: email })
+    .then(user => {
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      // Only send the _id in the response
+      res.status(200).json({ message: 'User already exists'});
+    })
+    .catch(err => {
+      console.error(err);
+      res.status(500).json({ message: 'Internal server error' });
+    });
+});
+
+app.post('/checkPhone', (req, res) => {
+  const { phone } = req.body;
+
+  // Find the user by email and password
+  User.findOne({ phone: phone })
+    .then(user => {
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      // Only send the _id in the response
+      res.status(200).json({ message: 'User already exists'});
+    })
+    .catch(err => {
+      console.error(err);
+      res.status(500).json({ message: 'Internal server error' });
     });
 });
