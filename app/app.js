@@ -278,7 +278,7 @@ app.get('/opportunity/:id', (req, res) => {
 });
 
 
-app.get('/authWithMail', (req, res) => {
+app.post('/authWithMail', (req, res) => {
   const { email, password } = req.body;
 
   // Find the user by email and password
@@ -296,7 +296,7 @@ app.get('/authWithMail', (req, res) => {
     });
 });
 
-app.get('/authWithPhone', (req, res) => {
+app.post('/authWithPhone', (req, res) => {
   const { phone } = req.body;
 
   // Find the user by email and password
