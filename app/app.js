@@ -378,7 +378,7 @@ app.post('/oppRegistration', (req,res) => {
 //Route for getting all opp registrations for 1 user
 app.get('/oppRegistration/:userId', (req,res) => {
   const{userId}= req.params;
-  OppRegistration.findOne({ userId: userId }) 
+  OppRegistration.find({ userId: userId }) 
     .then((result) => {
       if (!result) {
         return res.status(404).send('No Registrations found');
