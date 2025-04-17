@@ -37,7 +37,7 @@ const user_profileSchema = new Schema({
         type: String, // Blood group (e.g., "A+", "O-", "B+")
         required: false,
         enum: ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'], // Enum validation for blood group
-        default: null // Default to null if not provided
+        
     }
 }, {timestamps: true});
 
