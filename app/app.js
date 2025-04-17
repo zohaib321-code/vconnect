@@ -343,7 +343,7 @@ app.post('/checkPhone', (req, res) => {
         return res.status(404).json({ message: 'User not found' });
       }
       // Only send the _id in the response
-      res.status(200).json({ message: 'User already exists' });
+      res.status(200).json({ message: 'User already exists', userID: user._id });
     })
     .catch(err => {
       console.error(err);
