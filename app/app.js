@@ -4,6 +4,7 @@ const cors = require('cors');
 const UserProfile = require('../models/userProfile');  // Import the UserProfile model
 const User = require('../models/user');  // Assuming you have a User model
 const Opportunity = require('../models/opportunity');  // Assuming you have an Opportunity model
+const OppRegistration = require('../models/oppRegistration');
 const app = express();
 const port = 3000;
 
@@ -45,13 +46,13 @@ app.post('/userProfile', (req, res) => {
   } = req.body; // Extract data from request body
 
   const userProfile = new UserProfile({
-    _id: userId,  // Set _id to the same as the userId
+    userId: userId,  // Set _id to the same as the userId
     Name, bio, profilePicture, skills, interests, isBloodDonor, bloodGroup
   });
 
   userProfile.save()
     .then((result) => {
-      res.status(201).json({
+      res.status(200).json({
         message: "User profile created successfully",
         userProfile: result
       });
@@ -81,7 +82,7 @@ app.get('/userProfile', (req, res) => {
 app.get('/userProfile/:userId', (req, res) => {
   const { userId } = req.params;
 
-  UserProfile.findOne({ _id: userId }) // Querying using _id instead of userId
+  UserProfile.findOne({ userId: userId }) // Querying using _id instead of userId
     .then((result) => {
       if (!result) {
         return res.status(404).send('User profile not found');
@@ -102,7 +103,7 @@ app.put('/userProfile/:userId', (req, res) => {
   } = req.body;
 
   UserProfile.findOneAndUpdate(
-    { _id: userId }, // Use _id to find and update
+    { userId: userId }, // Use _id to find and update
     { Name, bio, profilePicture, skills, interests, isBloodDonor, bloodGroup },
     { new: true } // Return the updated document
   )
@@ -125,7 +126,7 @@ app.put('/userProfile/:userId', (req, res) => {
 app.delete('/userProfile/:userId', (req, res) => {
   const { userId } = req.params;
 
-  UserProfile.findOneAndDelete({ _id: userId }) // Use _id to find and delete
+  UserProfile.findOneAndDelete({ userId: userId }) // Use _id to find and delete
     .then((result) => {
       if (!result) {
         return res.status(404).send('User profile not found');
@@ -155,7 +156,7 @@ app.post('/user', (req, res) => {
 
   user.save()
     .then((result) => {
-      res.status(201).json({
+      res.status(200).json({
         message: "User created successfully",
         user: result
       });
@@ -236,7 +237,7 @@ app.post('/opportunity', (req, res) => {
 
   opportunity.save()
     .then((result) => {
-      res.status(201).json({
+      res.status(200).json({
         message: "Opportunity created successfully",
         opportunity: result
       });
@@ -278,7 +279,7 @@ app.get('/opportunity/:id', (req, res) => {
 });
 
 
-app.post('/authWithMail', (req, res) => {
+app.get('/authWithMail', (req, res) => {
   const { email, password } = req.body;
 
   // Find the user by email and password
@@ -296,11 +297,11 @@ app.post('/authWithMail', (req, res) => {
     });
 });
 
-app.post('/authWithPhone', (req, res) => {
+app.get('/authWithPhone', (req, res) => {
   const { phone } = req.body;
 
   // Find the user by email and password
-  User.findOne({phone: phone})
+  User.findOne({ phone: phone })
     .then(user => {
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
@@ -324,7 +325,7 @@ app.post('/checkMail', (req, res) => {
         return res.status(404).json({ message: 'User not found' });
       }
       // Only send the _id in the response
-      res.status(200).json({ message: 'User already exists'});
+      res.status(200).json({ message: 'User already exists' });
     })
     .catch(err => {
       console.error(err);
@@ -342,10 +343,88 @@ app.post('/checkPhone', (req, res) => {
         return res.status(404).json({ message: 'User not found' });
       }
       // Only send the _id in the response
-      res.status(200).json({ message: 'User already exists'});
+      res.status(200).json({ message: 'User already exists' });
     })
     .catch(err => {
       console.error(err);
       res.status(500).json({ message: 'Internal server error' });
+    });
+});
+
+//Route for adding opportunity registration
+app.post('/oppRegistration', (req,res) => {
+  const { opportunityId, userId, status } = req.body;
+  const oppRegistration = new OppRegistration({
+    opportunityId: opportunityId,
+    userId: userId,
+    status: status
+  })
+  oppRegistration.save()
+    .then((result) => {
+      res.status(200).json({
+        message: "DTV Registered",
+        oppRegistered: result
+      });
+    })
+    .catch((err) => {
+      console.log(err);
+      res.status(500).json({
+        message: "Error Registring DTV",
+        error: err
+      });
+    });
+})
+
+//Route for getting all opp registrations for 1 user
+app.get('/oppRegistration/:userId', (req,res) => {
+  const{userId}= req.params;
+  OppRegistration.findOne({ userId: userId }) 
+    .then((result) => {
+      if (!result) {
+        return res.status(404).send('No Registrations found');
+      }
+      res.status(200).json(result);
+    })
+    .catch((err) => {
+      console.log(err);
+      res.status(500).send('Error fetching registered opportunities');
+    });
+})
+
+// Route for deleting a specific registration using _id
+app.delete('/oppRegistration', (req, res) => {
+  const { userId, opportunityId } = req.body;
+
+  OppRegistration.findOneAndDelete({ userId, opportunityId })
+    .then(result => {
+      if (!result) {
+        return res.status(404).json({ message: 'No registration found to delete' });
+      }
+      res.status(200).json({ message: 'Registration deleted successfully' });
+    })
+    .catch(err => {
+      console.error(err);
+      res.status(500).json({
+        message: 'Error deleting registration',
+        error: err
+      });
+    });
+});
+
+
+// Route for finding a registration with user and postid
+app.post('/oppRegistration/check', (req, res) => {
+  const { userId, opportunityId } = req.body;
+
+  OppRegistration.exists({ userId, opportunityId })
+    .then(result => {
+      res.status(200).json({ isRegistered: !!result });
+    })
+    .catch(err => {
+      console.error(err);
+      res.status(500).json({
+        message: 'Error checking registration',
+        error: err
+      });
     });
 });
