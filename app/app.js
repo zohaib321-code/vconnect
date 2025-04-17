@@ -379,6 +379,7 @@ app.post('/oppRegistration', (req,res) => {
 app.get('/oppRegistration/:userId', (req,res) => {
   const{userId}= req.params;
   OppRegistration.find({ userId: userId }) 
+    .populate("opportunityId")
     .then((result) => {
       if (!result) {
         return res.status(404).send('No Registrations found');
