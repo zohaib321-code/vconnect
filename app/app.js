@@ -279,36 +279,48 @@ app.get('/opportunity', (req, res) => {
 });
 
 app.post('/opportunity/search', async (req, res) => {
-  const { coordinates, distance, tags } = req.body;
+  const { coordinates, distance, tags, daysOfWeek } = req.body;
 
   let query = {};
 
-  // Apply location-based filtering if coordinates and distance are provided
+  // Location filtering using $geoWithin and $centerSphere
   if (coordinates && coordinates.latitude && coordinates.longitude && distance) {
+    const radiusInRadians = parseFloat(distance) / 6378137; // Earth's radius in meters
     query.location = {
-      $near: {
-        $geometry: {
-          type: "Point",
-          coordinates: [coordinates.longitude, coordinates.latitude]
-        },
-        $maxDistance: parseInt(distance) // in meters
+      $geoWithin: {
+        $centerSphere: [
+          [coordinates.longitude, coordinates.latitude],
+          radiusInRadians
+        ]
       }
     };
   }
 
-  // Apply tags filtering if tags are provided
+  // Tags filtering
   if (tags && Array.isArray(tags) && tags.length > 0) {
     query.tags = { $in: tags };
   }
 
   try {
-    const opportunities = await Opportunity.find(query);
+    let opportunities = await Opportunity.find(query);
+
+    // Optional filtering by daysOfWeek [0 = Sunday, 6 = Saturday]
+    if (Array.isArray(daysOfWeek) && daysOfWeek.length > 0) {
+      opportunities = opportunities.filter(op => {
+        return op.dateTime.some(slot => {
+          const day = new Date(slot.date).getDay();
+          return daysOfWeek.includes(day);
+        });
+      });
+    }
+
     res.status(200).json(opportunities);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error fetching opportunities', error: err });
   }
 });
+
 
 
 // GET route to fetch an opportunity by ID
