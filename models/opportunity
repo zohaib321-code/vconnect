@@ -4,13 +4,13 @@ const Schema = mongoose.Schema;
 
 const opportunitySchema = new Schema({
     userId: {
-        type: Schema.Types.ObjectId, // ObjectId to reference the User model
-        ref: 'User', // Reference to the 'User' model (poster)
+        type: Schema.Types.ObjectId,
+        ref: 'User',
         required: true
     },
-    postMedia:{
-        type:String,
-        required:true
+    postMedia: {
+        type: String,
+        required: true
     },
     title: {
         type: String,
@@ -33,40 +33,51 @@ const opportunitySchema = new Schema({
         required: true
     },
     location: {
+        type: {
+            type: String,
+            enum: ['Point'],
+            required: true
+        },
+        coordinates: {
+            type: [Number], // [longitude, latitude]
+            required: true
+        },
         address: {
             type: String,
             required: false
-        },
-        pin: {
-            type: String, // location pin for maps app
-            required: false
-        },
-
+        }
     },
     skillsRequired: {
-        type: [String], // Array of skills needed for the opportunity
+        type: [String],
         required: false
     },
     opportunityType: {
         type: String,
-        enum: ['InPerson', 'Virtual'], // Types of opportunities
+        enum: ['InPerson', 'Virtual'],
         required: true
+    },
+    tags: {
+        type: [String], // Example: ['Environment', 'Healthcare', 'Teaching']
+        required: false
     },
     dateTime: [{
         date: {
-            type: Date, // Date field for the specific day
+            type: Date,
             required: true
         },
         startTime: {
-            type: String, // Start time (e.g., "12:00 AM")
+            type: String,
             required: true
         },
         endTime: {
-            type: String, // End time (e.g., "5:00 PM")
+            type: String,
             required: true
         }
-    }],
-}, {timestamps: true}); // Adding timestamps
+    }]
+}, { timestamps: true });
+
+// Geospatial index
+opportunitySchema.index({ location: '2dsphere' });
 
 const Opportunity = mongoose.model('Opportunity', opportunitySchema);
 
