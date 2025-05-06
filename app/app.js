@@ -217,10 +217,20 @@ app.delete('/user/:id', (req, res) => {
 // POST route to create an opportunity
 app.post('/opportunity', (req, res) => {
   const {
-    userId, postMedia, title, description, purpose, role, additional_details,
-    location, skillsRequired, opportunityType, dateTime
+    userId,
+    postMedia,
+    title,
+    description,
+    purpose,
+    role,
+    additional_details,
+    location, // expects { latitude, longitude, address }
+    skillsRequired,
+    opportunityType,
+    dateTime,
+    tags // new field
   } = req.body;
-
+console.log(req.body);
   const opportunity = new Opportunity({
     userId,
     postMedia,
@@ -229,10 +239,15 @@ app.post('/opportunity', (req, res) => {
     purpose,
     role,
     additional_details,
-    location,
+    location: {
+      type: 'Point',
+      coordinates: [location.longitude, location.latitude],
+      address: location.address
+    },
     skillsRequired,
     opportunityType,
-    dateTime
+    dateTime,
+    tags
   });
 
   opportunity.save()
@@ -250,6 +265,7 @@ app.post('/opportunity', (req, res) => {
     });
 });
 
+
 // GET route to fetch all opportunities
 app.get('/opportunity', (req, res) => {
   Opportunity.find()
@@ -261,6 +277,39 @@ app.get('/opportunity', (req, res) => {
       res.status(500).send('Error fetching opportunities');
     });
 });
+
+app.post('/opportunity/search', async (req, res) => {
+  const { coordinates, distance, tags } = req.body;
+
+  let query = {};
+
+  // Apply location-based filtering if coordinates and distance are provided
+  if (coordinates && coordinates.latitude && coordinates.longitude && distance) {
+    query.location = {
+      $near: {
+        $geometry: {
+          type: "Point",
+          coordinates: [coordinates.longitude, coordinates.latitude]
+        },
+        $maxDistance: parseInt(distance) // in meters
+      }
+    };
+  }
+
+  // Apply tags filtering if tags are provided
+  if (tags && Array.isArray(tags) && tags.length > 0) {
+    query.tags = { $in: tags };
+  }
+
+  try {
+    const opportunities = await Opportunity.find(query);
+    res.status(200).json(opportunities);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error fetching opportunities', error: err });
+  }
+});
+
 
 // GET route to fetch an opportunity by ID
 app.get('/opportunity/:id', (req, res) => {
@@ -336,14 +385,13 @@ app.post('/checkMail', (req, res) => {
 app.post('/checkPhone', (req, res) => {
   const { phone } = req.body;
 
-  // Find the user by email and password
   User.findOne({ phone: phone })
     .then(user => {
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
       // Only send the _id in the response
-      res.status(200).json({ message: 'User already exists', userID: user._id });
+      res.status(200).json({ message: 'User already exists', userId: user._id });
     })
     .catch(err => {
       console.error(err);
@@ -379,7 +427,6 @@ app.post('/oppRegistration', (req,res) => {
 app.get('/oppRegistration/:userId', (req,res) => {
   const{userId}= req.params;
   OppRegistration.find({ userId: userId }) 
-    .populate("opportunityId")
     .then((result) => {
       if (!result) {
         return res.status(404).send('No Registrations found');
