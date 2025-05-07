@@ -279,13 +279,13 @@ app.get('/opportunity', (req, res) => {
 });
 
 app.post('/opportunity/search', async (req, res) => {
-  const { coordinates, distance, tags, daysOfWeek } = req.body;
+  const { coordinates, distance, daysOfWeek, userId } = req.body;
 
   let query = {};
 
-  // Location filtering using $geoWithin and $centerSphere
+  // Location filtering
   if (coordinates && coordinates.latitude && coordinates.longitude && distance) {
-    const radiusInRadians = parseFloat(distance) / 6378137; // Earth's radius in meters
+    const radiusInRadians = parseFloat(distance) / 6378137;
     query.location = {
       $geoWithin: {
         $centerSphere: [
@@ -296,22 +296,28 @@ app.post('/opportunity/search', async (req, res) => {
     };
   }
 
-  // Tags filtering
-  if (tags && Array.isArray(tags) && tags.length > 0) {
-    query.tags = { $in: tags };
+  // Fetch user's interests from profile
+  if (userId) {
+    try {
+      const userProfile = await UserProfile.findOne({ userId });
+      if (userProfile && Array.isArray(userProfile.interests) && userProfile.interests.length > 0) {
+        query.tags = { $in: userProfile.interests };
+      }
+      // If no interests, just skip the tags filter
+    } catch (err) {
+      console.error('Error fetching user profile:', err);
+      return res.status(500).json({ message: 'Error fetching user profile', error: err });
+    }
   }
 
   try {
     let opportunities = await Opportunity.find(query);
 
-    // Optional filtering by daysOfWeek [0 = Sunday, 6 = Saturday]
+    // Filter by day of week if provided
     if (Array.isArray(daysOfWeek) && daysOfWeek.length > 0) {
-      opportunities = opportunities.filter(op => {
-        return op.dateTime.some(slot => {
-          const day = new Date(slot.date).getDay();
-          return daysOfWeek.includes(day);
-        });
-      });
+      opportunities = opportunities.filter(op =>
+        op.dateTime.some(slot => daysOfWeek.includes(new Date(slot.date).getDay()))
+      );
     }
 
     res.status(200).json(opportunities);
@@ -319,7 +325,7 @@ app.post('/opportunity/search', async (req, res) => {
     console.error(err);
     res.status(500).json({ message: 'Error fetching opportunities', error: err });
   }
-});
+})
 
 
 
