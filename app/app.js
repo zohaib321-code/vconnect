@@ -5,6 +5,7 @@ const UserProfile = require('../models/userProfile');  // Import the UserProfile
 const User = require('../models/user');  // Assuming you have a User model
 const Opportunity = require('../models/opportunity');  // Assuming you have an Opportunity model
 const OppRegistration = require('../models/oppRegistration');
+const Otp = require('../models/otp');
 const app = express();
 const port = 3000;
 
@@ -76,6 +77,105 @@ app.get('/userProfile', (req, res) => {
       console.log(err);
       res.status(500).send('Error fetching user profiles');
     });
+});
+app.post('/api/request-otp', async (req, res) => {
+  const { phone } = req.body;
+
+  if (!phone || !phone.startsWith('3') || phone.length !== 10) {
+    return res.status(400).json({ error: 'Invalid phone number' });
+  }
+
+  try {
+    // Get current date (midnight) for daily limit
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let otpRecord = await Otp.findOne({ phone });
+
+    // Reset attempts if last attempt was before today
+    if (otpRecord && otpRecord.createdAt < today) {
+      otpRecord.attempts = 0;
+      otpRecord.createdAt = new Date();
+    }
+
+    // Check OTP attempt limit (5 per day)
+    if (otpRecord && otpRecord.attempts >= 5) {
+      return res.status(429).json({ error: 'Maximum 5 OTP requests reached for today' });
+    }
+
+    // Generate OTP
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+
+    // Update or create OTP record
+    if (otpRecord) {
+      otpRecord.otp = otp;
+      otpRecord.attempts += 1;
+      otpRecord.createdAt = new Date();
+      await otpRecord.save();
+    } else {
+      otpRecord = new Otp({
+        phone,
+        otp,
+        attempts: 1,
+      });
+      await otpRecord.save();
+    }
+
+    // Send OTP via SMS
+    const success = await axios.post(
+      'https://api.veevotech.com/v3/sendsms',
+      {
+        hash: process.env.SMS_API_KEY || '051e86b2b4f26affda547507812a16c4',
+        receivernum: `+92${phone}`,
+        sendernum: 'default',
+        textmessage: `Your OTP is ${otp}`,
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    res.status(200).json({ message: 'OTP sent successfully' });
+  } catch (error) {
+    console.error('Error sending OTP:', error.message);
+    res.status(500).json({ error: 'Failed to send OTP' });
+  }
+});
+
+app.post('/api/verify-otp', async (req, res) => {
+  const { phone, otp, email, password, active = true, type = 'user' } = req.body;
+
+  try {
+    const otpRecord = await Otp.findOne({ phone, otp });
+    if (!otpRecord) {
+      return res.status(400).json({ error: 'Invalid OTP' });
+    }
+
+    const existingUser = await User.findOne({ $or: [{ phone }, { email }] });
+    if (existingUser) {
+      return res.status(400).json({ error: 'User with this phone or email already exists' });
+    }
+
+    const user = new User({
+      phone,
+      email,
+      password,
+      active,
+      type,
+    });
+
+    const result = await user.save();
+    await Otp.deleteOne({ phone });
+
+    res.status(200).json({
+      message: 'Signup successful',
+      user: result,
+    });
+  } catch (error) {
+    console.error('Error verifying OTP or creating user:', error.message);
+    res.status(500).json({ error: 'Failed to sign up' });
+  }
 });
 
 // GET route to fetch a user profile by userId
