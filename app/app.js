@@ -121,24 +121,25 @@ app.post('/api/request-otp', async (req, res) => {
     }
 
     // Send OTP via SMS
-    const success = await axios.post(
+    const success = await fetch(
       'https://api.veevotech.com/v3/sendsms',
       {
-        hash: process.env.SMS_API_KEY || '051e86b2b4f26affda547507812a16c4',
-        receivernum: `+92${phone}`,
-        sendernum: 'default',
-        textmessage: `Your OTP is ${otp}`,
-      },
-      {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        body:{
+          hash: process.env.SMS_API_KEY || '051e86b2b4f26affda547507812a16c4',
+          receivernum: `+92${phone}`,
+          sendernum: 'default',
+          textmessage: `Your OTP is ${otp}`
+        }
       }
     );
 
     res.status(200).json({ message: 'OTP sent successfully' });
   } catch (error) {
-    console.error('Error sending OTP:', error.message);
+    console.log('Error sending OTP:', error.message);
     res.status(500).json({ error: 'Failed to send OTP' });
   }
 });
