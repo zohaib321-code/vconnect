@@ -44,4 +44,4 @@ app.get('/', (req, res) => {
 app.use('/auth', authRoutes);
 app.use('/', userRoutes);
 app.use('/opportunity', opportunityRoutes);
-app.use('/oppRegistration', oppRegistrationRoutes); 
+app.use('/oppRegistration', oppRegistrationRoutes);
