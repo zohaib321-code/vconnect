@@ -9,11 +9,9 @@ const oppRegistrationRoutes = require('./routes/oppRegistrationRoutes');
 const app = express();
 const port = 3000;
  
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Connect to MongoDB
 const dburi = "mongodb+srv://vcon_user:vcon_pass@vconnect.8ot7y.mongodb.net/vConnect?retryWrites=true&w=majority&appName=vConnect";
 mongoose.connect(dburi, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => {
