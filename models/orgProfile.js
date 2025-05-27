@@ -8,17 +8,20 @@ const org_profileSchema = new Schema({
         ref: 'User', // Reference to the 'User' model
         required: true
     },
-    rgName: {
+    orgName: {
         type: String,
-        required: false
+        required: false,
+        default: ""
     },
     aboutOrg: {
         type: String,
-        required: false
+        required: false,
+        default: ""
     },
     publicPhone:{
         type: String,
-        required: false
+        required: false,
+        default: ""
     },
     location: {
         type: {
@@ -32,16 +35,19 @@ const org_profileSchema = new Schema({
         },
         physicalAddress: {
             type: String,
-            required: false
+            required: false,
+            default: ""
         }
     },
     profilePicture: {
         type: String, // URL to the profile picture
-        required: false
+        required: false,
+        default: ""
     },
     coverPicture: {
         type: String, // URL to the profile picture
-        required: false
+        required: false,
+        default: ""
     },
     
     interests: {

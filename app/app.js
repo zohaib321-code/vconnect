@@ -6,6 +6,8 @@ const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const opportunityRoutes = require('./routes/opportunityRoutes');
 const oppRegistrationRoutes = require('./routes/oppRegistrationRoutes');
+const orgProfileRoutes = require('./routes/orgProfileRoutes');
+
 const app = express();
 const port = 3000;
  
@@ -44,3 +46,4 @@ app.use('/auth', authRoutes);
 app.use('/', userRoutes);
 app.use('/opportunity', opportunityRoutes);
 app.use('/oppRegistration', oppRegistrationRoutes);
+app.use('/orgProfile', orgProfileRoutes);
