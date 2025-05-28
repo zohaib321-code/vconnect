@@ -68,19 +68,30 @@ router.get('/', (req, res) => {
 });
 
 // GET route to fetch an opportunity by ID
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   const { id } = req.params;
-  Opportunity.findById(id)
-    .then((result) => {
-      if (!result) {
-        return res.status(404).send('Opportunity not found');
-      }
-      res.send(result);
-    })
-    .catch((err) => {
-      console.log(err);
-      res.status(500).send('Error fetching opportunity');
-    });
+
+  try {
+    const opportunity = await Opportunity.findById(id);
+
+    if (!opportunity) {
+      return res.status(404).send('Opportunity not found');
+    }
+
+    const orgProfile = await OrgProfile.findOne({ userId: opportunity.userId });
+
+    const response = {
+      ...opportunity._doc,
+      orgId: orgProfile?._id || null,
+      orgName: orgProfile?.orgName || null,
+      profilePicture: orgProfile?.profilePicture || null,
+    };
+
+    res.send(response);
+  } catch (err) {
+    console.log(err);
+    res.status(500).send('Error fetching opportunity');
+  }
 });
 
 // POST route to search opportunities
