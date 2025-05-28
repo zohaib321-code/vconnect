@@ -213,7 +213,7 @@ router.post('/organization/request-otp', async (req, res) => {
 
 // POST route to verify OTP and create organization user
 router.post('/organization/verify-otp', async (req, res) => {
-  const {name, email, otp, phone, password, active = true, type = 'organization' } = req.body;
+  const {name, email, otp, phone, password, active = true, type = 'org' } = req.body;
 
   try {
     const otpRecord = await Otp.findOne({ email, otp });
