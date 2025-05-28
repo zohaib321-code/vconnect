@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const Opportunity = require('../../models/opportunity');
 const UserProfile = require('../../models/userProfile');
-
+const OrgProfile = require('../../models/orgProfile')
 // POST route to create an opportunity
 router.post('/', (req, res) => {
   const {
@@ -84,8 +84,9 @@ router.get('/:id', (req, res) => {
 });
 
 // POST route to search opportunities
+
 router.post('/search', async (req, res) => {
-  const { coordinates, distance, daysOfWeek, userId } = req.body;
+  const { coordinates, distance, daysOfWeek, userId } = req.body || {};
 
   let query = {};
 
@@ -104,7 +105,7 @@ router.post('/search', async (req, res) => {
   if (userId) {
     try {
       const userProfile = await UserProfile.findOne({ userId });
-      if (userProfile && Array.isArray(userProfile.interests) && userProfile.interests.length > 0) {
+      if (userProfile?.interests?.length > 0) {
         query.tags = { $in: userProfile.interests };
       }
     } catch (err) {
@@ -114,13 +115,35 @@ router.post('/search', async (req, res) => {
   }
 
   try {
-    let opportunities = await Opportunity.find(query);
+    let opportunities = await Opportunity.find(query)
+      .lean(); // returns plain JS objects for easier manipulation
 
+    // Filter by day of week
     if (Array.isArray(daysOfWeek) && daysOfWeek.length > 0) {
       opportunities = opportunities.filter(op =>
         op.dateTime.some(slot => daysOfWeek.includes(new Date(slot.date).getDay()))
       );
     }
+
+    // Fetch org details for each opportunity
+    const orgProfiles = await OrgProfile.find({
+      userId: { $in: opportunities.map(op => op.userId) }
+    }).select('userId orgName profilePicture');
+
+    const orgMap = {};
+    orgProfiles.forEach(org => {
+      orgMap[org.userId.toString()] = {
+        orgId: org.userId,
+        orgName: org.orgName,
+        profilePicture: org.profilePicture
+      };
+    });
+
+    // Attach org details to each opportunity
+    opportunities = opportunities.map(op => ({
+      ...op,
+      organization: orgMap[op.userId.toString()] || null
+    }));
 
     res.status(200).json(opportunities);
   } catch (err) {
@@ -128,5 +151,6 @@ router.post('/search', async (req, res) => {
     res.status(500).json({ message: 'Error fetching opportunities', error: err });
   }
 });
+
 
 module.exports = router;
