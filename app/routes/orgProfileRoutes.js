@@ -4,13 +4,22 @@ const OrgProfile = require('../../models/orgProfile');
 
 // Create org profile
 router.post('/', async (req, res) => {
-  try {
+
     const newProfile = new OrgProfile(req.body);
-    const savedProfile = await newProfile.save();
-    res.status(201).json(savedProfile);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
+    newProfile.save()
+    .then((result) => {
+      res.status(200).json({
+        message: "Org profile created successfully",
+        userProfile: result
+      });
+    })
+    .catch((err) => {
+      console.log(err);
+      res.status(500).json({
+        message: "Error saving user profile",
+        error: err
+      });
+    });
 });
 
 // Get all organization profiles
