@@ -213,37 +213,19 @@ router.post('/organization/request-otp', async (req, res) => {
 
 // POST route to verify OTP and create organization user
 router.post('/organization/verify-otp', async (req, res) => {
-  const {name, email, otp, phone, password, active = true, type = 'org' } = req.body;
+  const {email, otp } = req.body;
 
   try {
     const otpRecord = await Otp.findOne({ email, otp });
-    if (!otpRecord) {
+    if (otpRecord) {
+      return res.status(200).json({ message: 'Otp Verified' });
+    }
+    else if(!otpRecord)
+    {
       return res.status(400).json({ error: 'Invalid OTP' });
     }
-
-    const existingUser = await User.findOne({ $or: [{ phone }, { email }] });
-    if (existingUser) {
-      return res.status(400).json({ error: 'User with this phone or email already exists' });
-    }
-
-    const user = new User({
-      name,
-      phone,
-      email,
-      password,
-      active,
-      type,
-    });
-
-    const result = await user.save();
-    await Otp.deleteOne({ email });
-
-    res.status(200).json({
-      message: 'Organization signup successful',
-      user: result,
-    });
   } catch (error) {
-    console.error('Error verifying OTP or creating organization:', error.message);
+    console.error('Error verifying OTP :', error.message);
     res.status(500).json({ error: 'Failed to sign up' });
   }
 });
