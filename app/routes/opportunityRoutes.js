@@ -163,5 +163,20 @@ router.post('/search', async (req, res) => {
   }
 });
 
+// GET route to fetch opportunities by organization ID
+router.get('/organization/:organizationId', (req, res) => {
+  const { organizationId } = req.params;
+  Opportunity.find({ userId: organizationId })
+    .then((result) => {
+      if (!result || result.length === 0) {
+        return res.status(404).send('No opportunities found for this organization');
+      }
+      res.send(result);
+    })
+    .catch((err) => {
+      console.log(err);
+      res.status(500).send('Error fetching opportunities');
+    });
+});
 
 module.exports = router;
