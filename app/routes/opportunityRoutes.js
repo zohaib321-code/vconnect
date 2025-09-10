@@ -164,6 +164,7 @@ router.post('/search', async (req, res) => {
 });
 
 // GET route to fetch opportunities by organization ID
+
 router.get('/organization/:organizationId', (req, res) => {
   const { organizationId } = req.params;
   Opportunity.find({ userId: organizationId })
