@@ -9,7 +9,7 @@ const oppRegistrationRoutes = require('./routes/oppRegistrationRoutes');
 const orgProfileRoutes = require('./routes/orgProfileRoutes');
 
 const app = express();
-const port = 3000;
+const port = 5000;
  
 // Middleware
 app.use(cors());
