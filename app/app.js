@@ -7,6 +7,7 @@ const userRoutes = require('./routes/userRoutes');
 const opportunityRoutes = require('./routes/opportunityRoutes');
 const oppRegistrationRoutes = require('./routes/oppRegistrationRoutes');
 const orgProfileRoutes = require('./routes/orgProfileRoutes');
+const SecureImage = require('../models/SecureImage');
 
 const app = express();
 const port = 5000;
@@ -43,6 +44,8 @@ app.get('/', (req, res) => {
 
 // Use route files
 app.use('/auth', authRoutes);
+app.use('/media', SecureImage);
+
 app.use('/', userRoutes);
 app.use('/opportunity', opportunityRoutes);
 app.use('/oppRegistration', oppRegistrationRoutes);
