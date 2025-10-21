@@ -2,10 +2,13 @@
 const express = require('express');
 const router = express.Router();
 const OppRegistration = require('../../models/oppRegistration');
+const {authMiddleware} = require('../../middleware/auth');
 
+router.use(authMiddleware);
 // POST route for adding opportunity registration
-router.post('/', (req, res) => {
-  const { opportunityId, userId, status } = req.body;
+router.post('/',authMiddleware, (req, res) => {
+  const { opportunityId , status } = req.body;
+  const userId = req.user.userId;
   const oppRegistration = new OppRegistration({
     opportunityId,
     userId,
@@ -29,8 +32,11 @@ router.post('/', (req, res) => {
 });
 
 // GET route to fetch all opportunity registrations for a user
-router.get('/:userId', (req, res) => {
+router.get('/:userId',authMiddleware, (req, res) => {
   const { userId } = req.params;
+  if( userId !==req.user.userId){
+    return res.status(403).send('Unauthorized')
+  }
   OppRegistration.find({ userId: userId })
     .populate('opportunityId')
     .then((result) => {
@@ -46,9 +52,9 @@ router.get('/:userId', (req, res) => {
 });
 
 // DELETE route to remove a specific registration
-router.delete('/', (req, res) => {
-  const { userId, opportunityId } = req.body;
-
+router.delete('/',authMiddleware, (req, res) => {
+  const { opportunityId } = req.body;
+  const userId = req.user.userId;
   OppRegistration.findOneAndDelete({ userId, opportunityId })
     .then(result => {
       if (!result) {
@@ -66,9 +72,9 @@ router.delete('/', (req, res) => {
 });
 
 // POST route to check if a registration exists
-router.post('/check', (req, res) => {
-  const { userId, opportunityId } = req.body;
-
+router.post('/check',authMiddleware, (req, res) => {
+  const { opportunityId } = req.body;
+  const userId = req.user.userId;
   OppRegistration.exists({ userId, opportunityId })
     .then(result => {
       res.status(200).json({ isRegistered: !!result });

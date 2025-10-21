@@ -94,7 +94,7 @@ router.post('/verify-otp', async (req, res) => {
     const result = await user.save();
     await Otp.deleteOne({ phone });
 
-        const token = jwt.sign({ userId: user._id, type: user.type }, process.env.JWT_SECRET, { expiresIn: '5mints' });
+        const token = jwt.sign({ userId: user._id, type: user.type }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
         res.status(200).json({
             message: 'Signup successful',
@@ -125,7 +125,11 @@ router.post('/authWithMail', async (req, res) => {
         return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const token = jwt.sign({ userId: user._id, type: user.type }, process.env.JWT_SECRET || 'your_jwt_secret_key_here', { expiresIn: '1h' });
+    const token = jwt.sign(
+      { userId: user._id, type: user.type },
+       process.env.JWT_SECRET, 
+       { expiresIn: '7d' }
+      );
 
     res.status(200).json({
         message: 'User authenticated successfully',
@@ -148,7 +152,7 @@ router.get('/authWithPhone', async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        const token = jwt.sign({ userId: user._id, type: user.type }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        const token = jwt.sign({ userId: user._id, type: user.type }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
         res.status(200).json({
             message: 'User found',
@@ -255,7 +259,7 @@ router.post('/organization/verify-otp', async (req, res) => {
       await user.save();
       await Otp.deleteOne({ email });
 
-      const token = jwt.sign({ userId: user._id, type: user.type }, process.env.JWT_SECRET, { expiresIn: '1h' });
+      const token = jwt.sign({ userId: user._id, type: user.type }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
       res.status(200).json({
           message: 'Organization signup successful',

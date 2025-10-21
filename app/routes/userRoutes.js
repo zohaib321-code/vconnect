@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const UserProfile = require('../../models/userProfile');
 const User = require('../../models/user');
+const { authMiddleware } = require('../../middleware/auth');
 
 // POST route to create a user profile
 router.post('/userProfile', (req, res) => {
@@ -38,7 +39,7 @@ router.post('/userProfile', (req, res) => {
 });
 
 // GET route to fetch all user profiles
-router.get('/userProfile', (req, res) => {
+router.get('/userProfile',authMiddleware, (req, res) => {
   UserProfile.find()
     .then((result) => {
       res.status(200).json(result);
@@ -50,7 +51,7 @@ router.get('/userProfile', (req, res) => {
 });
 
 // GET route to fetch a user profile by userId
-router.get('/userProfile/:userId', (req, res) => {
+router.get('/userProfile/:userId',authMiddleware, (req, res) => {
   const { userId } = req.params;
 
   UserProfile.findOne({ userId: userId })
@@ -67,7 +68,7 @@ router.get('/userProfile/:userId', (req, res) => {
 });
 
 // PUT route to update a user profile
-router.put('/userProfile/:userId', (req, res) => {
+router.put('/userProfile/:userId',authMiddleware, (req, res) => {
   const { userId } = req.params;
   const {
     Name, bio, profilePicture, skills, interests, isBloodDonor, bloodGroup
@@ -94,7 +95,7 @@ router.put('/userProfile/:userId', (req, res) => {
 });
 
 // DELETE route to remove a user profile
-router.delete('/userProfile/:userId', (req, res) => {
+router.delete('/userProfile/:userId',authMiddleware, (req, res) => {
   const { userId } = req.params;
 
   UserProfile.findOneAndDelete({ userId: userId })
@@ -142,7 +143,7 @@ router.post('/user', (req, res) => {
 });
 
 // GET route to fetch all users
-router.get('/user', (req, res) => {
+router.get('/user',authMiddleware, (req, res) => {
   User.find()
     .then((result) => {
       res.send(result);
@@ -154,7 +155,7 @@ router.get('/user', (req, res) => {
 });
 
 // GET route to fetch a user by ID
-router.get('/user/:id', (req, res) => {
+router.get('/user/:id',authMiddleware, (req, res) => {
   const { id } = req.params;
   User.findById(id)
     .then((result) => {
@@ -170,7 +171,7 @@ router.get('/user/:id', (req, res) => {
 });
 
 // DELETE route to remove a user by ID
-router.delete('/user/:id', (req, res) => {
+router.delete('/user/:id',authMiddleware, (req, res) => {
   const { id } = req.params;
   User.findByIdAndDelete(id)
     .then((result) => {
