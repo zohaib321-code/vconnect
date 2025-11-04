@@ -10,7 +10,7 @@ const orgProfileRoutes = require('./routes/orgProfileRoutes');
 const SecureImage = require('../models/SecureImage');
 
 const app = express();
-const port = 5000;
+const port = 5000; 
  
 // Middleware
 app.use(cors());
