@@ -4,8 +4,9 @@ const router = express.Router();
 const Opportunity = require('../../models/opportunity');
 const UserProfile = require('../../models/userProfile');
 const OrgProfile = require('../../models/orgProfile')
+const {authMiddleware,authorize} = require('../../middleware/auth')
 // POST route to create an opportunity
-router.post('/', (req, res) => {
+router.post('/',authMiddleware, (req, res) => {
   const {
     userId,
     postMedia,
@@ -164,7 +165,7 @@ router.post('/search', async (req, res) => {
 });
 
 // GET route to fetch opportunities by organization ID
-router.get('/organization/:organizationId', (req, res) => {
+router.get('/organization/:organizationId',authMiddleware, (req, res) => {
   const { organizationId } = req.params;
   Opportunity.find({ userId: organizationId })
     .then((result) => {
