@@ -56,6 +56,71 @@ router.post('/',authMiddleware, (req, res) => {
     });
 });
 
+// PUT route to update an opportunity
+router.put('/:id', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const {
+    title,
+    description,
+    purpose,
+    role,
+    additional_details,
+    location,
+    skillsRequired,
+    opportunityType,
+    dateTime,
+    tags,
+    postMedia
+  } = req.body;
+
+  try {
+    const opportunity = await Opportunity.findById(id);
+    if (!opportunity) {
+      return res.status(404).json({ message: 'Opportunity not found' });
+    }
+
+    // Verify ownership
+    if (opportunity.userId.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'Unauthorized: You can only edit your own opportunities' });
+    }
+
+    const updateData = {
+      title,
+      description,
+      purpose,
+      role,
+      additional_details,
+      skillsRequired,
+      opportunityType,
+      dateTime,
+      tags,
+      postMedia
+    };
+
+    if (location) {
+      updateData.location = {
+        type: 'Point',
+        coordinates: [location.longitude, location.latitude],
+        address: location.address
+      };
+    }
+
+    const updated = await Opportunity.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    res.status(200).json({
+      message: 'Opportunity updated successfully',
+      opportunity: updated
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error updating opportunity', error: err });
+  }
+});
+
 // GET route to fetch all opportunities
 router.get('/', (req, res) => {
   Opportunity.find()
