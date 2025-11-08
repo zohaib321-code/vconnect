@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
 const { v2: cloudinary } = require("cloudinary");
-const authMiddleware = require("../../middleware/auth");
 const SecureImage = require("../../models/SecureImage");
 
 // Configure Cloudinary
@@ -12,28 +11,26 @@ cloudinary.config({
   secure: true,
 });
 
-
-// 🟩 Upload secure image (private upload)
-router.post("/uploadSecure", authMiddleware, async (req, res) => {
+// 🟩 Upload secure image (public test version)
+router.post("/uploadSecure", async (req, res) => {
   try {
     const { image } = req.body; // base64 string or file URL
 
     if (!image) return res.status(400).json({ message: "No image provided." });
 
     const result = await cloudinary.uploader.upload(image, {
-      folder: "secure",
-      type: "authenticated", // private
+      folder: "secure_test",
       resource_type: "image",
     });
 
+    // Save to DB (optional)
     const newImage = await SecureImage.create({
-      user: req.user.userId,
       publicId: result.public_id,
       url: result.secure_url,
     });
 
     res.status(201).json({
-      message: "Image uploaded securely.",
+      message: "Image uploaded successfully.",
       image: newImage,
     });
   } catch (error) {
@@ -42,12 +39,10 @@ router.post("/uploadSecure", authMiddleware, async (req, res) => {
   }
 });
 
-
-// 🟦 Get all images uploaded by current user
-router.get("/myImages", authMiddleware, async (req, res) => {
+// 🟦 Get all images (public)
+router.get("/myImages", async (req, res) => {
   try {
-    const images = await SecureImage.find({ user: req.user.userId })
-      .sort({ createdAt: -1 });
+    const images = await SecureImage.find().sort({ createdAt: -1 });
 
     res.status(200).json({
       count: images.length,
@@ -59,71 +54,34 @@ router.get("/myImages", authMiddleware, async (req, res) => {
   }
 });
 
-
-// 🟨 Admin: Get all images for a specific user
-router.get("/user/:userId", authMiddleware, async (req, res) => {
-  try {
-    if (req.user.type !== "admin") {
-      return res.status(403).json({ message: "Access denied. Admins only." });
-    }
-
-    const { userId } = req.params;
-    const images = await SecureImage.find({ user: userId })
-      .sort({ createdAt: -1 });
-
-    res.status(200).json({
-      count: images.length,
-      images,
-    });
-  } catch (error) {
-    console.error("Admin get user images error:", error);
-    res.status(500).json({ message: "Error fetching user images.", error });
-  }
-});
-
-
-// 🟧 Generate temporary signed URL (for viewing private image)
-router.get("/signedUrl/:publicId", authMiddleware, async (req, res) => {
+// 🟧 Generate direct (non-signed) URL for simplicity
+router.get("/signedUrl/:publicId", async (req, res) => {
   try {
     const { publicId } = req.params;
 
     const image = await SecureImage.findOne({ publicId });
     if (!image) return res.status(404).json({ message: "Image not found." });
 
-    // only owner or admin can view
-    if (req.user.type !== "admin" && image.user.toString() !== req.user.userId) {
-      return res.status(403).json({ message: "Not authorized." });
-    }
-
-    // signed URL valid for 2 minutes
-    const signedUrl = cloudinary.url(publicId, {
+    const directUrl = cloudinary.url(publicId, {
       secure: true,
-      sign_url: true,
-      type: "authenticated",
-      expires_at: Math.floor(Date.now() / 1000) + 120,
     });
 
-    res.status(200).json({ signedUrl });
+    res.status(200).json({ directUrl });
   } catch (error) {
     console.error("Signed URL error:", error);
-    res.status(500).json({ message: "Failed to generate signed URL.", error });
+    res.status(500).json({ message: "Failed to generate URL.", error });
   }
 });
 
-
-// 🟥 Delete image (only by owner)
-router.delete("/:publicId", authMiddleware, async (req, res) => {
+// 🟥 Delete image (public test version)
+router.delete("/:publicId", async (req, res) => {
   try {
     const { publicId } = req.params;
 
     const image = await SecureImage.findOne({ publicId });
     if (!image) return res.status(404).json({ message: "Image not found." });
 
-    if (image.user.toString() !== req.user.userId) {
-      return res.status(403).json({ message: "Not authorized to delete this image." });
-    }
-
-    await cloudinary.uploader.destroy(publicId, { type: "authenticated" });
+    await cloudinary.uploader.destroy(publicId);
     await SecureImage.deleteOne({ publicId });
 
     res.status(200).json({ message: "Image deleted successfully." });

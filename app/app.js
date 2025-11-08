@@ -7,11 +7,13 @@ const userRoutes = require('./routes/userRoutes');
 const opportunityRoutes = require('./routes/opportunityRoutes');
 const oppRegistrationRoutes = require('./routes/oppRegistrationRoutes');
 const orgProfileRoutes = require('./routes/orgProfileRoutes');
+const SecureImage = require('./routes/MediaRoutes');
 const SecureImage = require('../models/SecureImage');
 require('dotenv').config();
+const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
-const port = 5000;
+const port = 5000; 
  
 // Middleware
 app.use(cors());
@@ -46,6 +48,7 @@ app.get('/', (req, res) => {
 // Use route files
 app.use('/auth', authRoutes);
 app.use('/media', SecureImage);
+app.use('/notification', notificationRoutes);
 
 app.use('/', userRoutes);
 app.use('/opportunity', opportunityRoutes);

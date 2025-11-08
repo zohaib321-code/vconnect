@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const OppRegistration = require('../../models/oppRegistration');
-const {authMiddleware} = require('../../middleware/auth');
+const authMiddleware = require('../../middleware/auth');
 
 router.use(authMiddleware);
 // POST route for adding opportunity registration
