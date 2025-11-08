@@ -73,7 +73,7 @@ router.post('/following', async (req, res) => {
 
     try {
         const following = await Follow.find({ follower: followerId })
-            .populate('organization', 'name email');
+            .populate('_id', 'name email');
         res.status(200).json({ following });
     } catch (error) {
         console.error(error);
