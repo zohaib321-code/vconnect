@@ -1,13 +1,11 @@
 // socialRoutes.js
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middleware/auth');
 
-const Follow = require('../models/Follow');
-const Friendship = require('../models/Friendship');
-const User = require('../models/User');
+const Follow = require('../../models/follows');
+const Friendship = require('../../models/friends');
+const User = require('../../models/user');
 
-router.use(authMiddleware);
 
 /**
  * =========================
