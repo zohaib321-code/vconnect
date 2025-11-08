@@ -8,7 +8,6 @@ const opportunityRoutes = require('./routes/opportunityRoutes');
 const oppRegistrationRoutes = require('./routes/oppRegistrationRoutes');
 const orgProfileRoutes = require('./routes/orgProfileRoutes');
 const SecureImage = require('./routes/MediaRoutes');
-require('dotenv').config();
 const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
