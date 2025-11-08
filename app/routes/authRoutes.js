@@ -6,6 +6,7 @@ const bcrypt = require('bcryptjs');
 const Otp = require('../../models/otp');
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
+require('dotenv').config(); 
 
 // POST route to request OTP
 router.post('/request-otp', async (req, res) => {
