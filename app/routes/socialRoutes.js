@@ -5,7 +5,8 @@ const router = express.Router();
 const Follow = require('../../models/follows');
 const Friendship = require('../../models/friends');
 const User = require('../../models/user');
-
+const Profile = require('../../models/userProfile');               // user profiles
+const OrganizationProfile = require('../../models/orgProfile'); // org profiles
 
 /**
  * =========================
@@ -58,7 +59,13 @@ router.post('/followers', async (req, res) => {
 
     try {
         const followers = await Follow.find({ organization: organizationId })
-            .populate('follower', 'name email');
+            .populate({
+                path: 'follower',
+                model: 'Profile',
+                select: 'name email profilePicture userId',
+                localField: 'follower',
+                foreignField: 'userId',
+            });
         res.status(200).json({ followers });
     } catch (error) {
         console.error(error);
@@ -73,13 +80,20 @@ router.post('/following', async (req, res) => {
 
     try {
         const following = await Follow.find({ follower: followerId })
-            .populate('_id', 'name email');
+            .populate({
+                path: 'organization',
+                model: 'OrganizationProfile',
+                select: 'orgName profilePicture coverPicture userId',
+                localField: 'organization',
+                foreignField: 'userId',
+            });
         res.status(200).json({ following });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Failed to fetch following list' });
     }
 });
+
 
 /**
  * =========================
@@ -162,10 +176,22 @@ router.post('/friends', async (req, res) => {
                 { requester: userId, status: 'accepted' },
                 { recipient: userId, status: 'accepted' }
             ]
-        }).populate('requester recipient', 'name email');
+        }).populate({
+            path: 'requester',
+            model: 'Profile',
+            select: 'name email profilePicture userId',
+            localField: 'requester',
+            foreignField: 'userId'
+        }).populate({
+            path: 'recipient',
+            model: 'Profile',
+            select: 'name email profilePicture userId',
+            localField: 'recipient',
+            foreignField: 'userId'
+        });
 
         const friends = friendships.map(f =>
-            f.requester._id.toString() === userId ? f.recipient : f.requester
+            f.requester.userId.toString() === userId ? f.recipient : f.requester
         );
 
         res.status(200).json({ friends });
@@ -182,7 +208,13 @@ router.post('/friend-requests', async (req, res) => {
 
     try {
         const requests = await Friendship.find({ recipient: userId, status: 'pending' })
-            .populate('requester', 'name email');
+            .populate({
+                path: 'requester',
+                model: 'Profile',
+                select: 'name email profilePicture userId',
+                localField: 'requester',
+                foreignField: 'userId'
+            });
 
         res.status(200).json({ requests });
     } catch (error) {
