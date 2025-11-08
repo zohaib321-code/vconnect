@@ -29,6 +29,9 @@ const userSchema= new Schema({
     type:{
         type: String,
         required: true
+    },
+    pushToken:{
+        type: String,
     }
 }, {timestamps: true});
 

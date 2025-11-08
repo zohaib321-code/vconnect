@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const OppRegistration = require('../../models/oppRegistration');
+const authMiddleware = require('../../middleware/auth');
 
 // POST route for adding opportunity registration
 router.post('/', (req, res) => {
@@ -79,6 +80,38 @@ router.post('/check', (req, res) => {
         message: 'Error checking registration',
         error: err
       });
+    });
+});
+
+// GET route to fetch all applications for organization's opportunities
+router.get('/org/:orgId', authMiddleware, (req, res) => {
+  const { orgId } = req.params;
+  OppRegistration.find()
+    .populate({
+      path: 'opportunityId',
+      match: { organization: orgId },
+      populate: { path: 'organization' }
+    })
+    .populate('userId', 'name email')
+    .then(results => {
+      const apps = results
+        .filter(r => r.opportunityId) 
+        .map(r => ({
+          _id: r._id,
+          volunteer: {
+            name: r.userId?.name || 'Unknown',
+            email: r.userId?.email || '',
+          },
+          opportunity: r.opportunityId.title,
+          appliedAt: r.createdAt,
+          status: r.status,
+          message: r.message || ''
+        }));
+      res.status(200).json(apps);
+    })
+    .catch(err => {
+      console.error(err);
+      res.status(500).json({ message: 'Error fetching applications' });
     });
 });
 
