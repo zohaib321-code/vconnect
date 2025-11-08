@@ -16,4 +16,11 @@ const authMiddleware = (req, res, next) => {
     }
 };
 
-module.exports = authMiddleware;
+const authorize = (userRole) =>(req, res, next) =>{
+    if(!userRole.includes(req.user.userrole)){
+        return res.status(403).json({error: 'Unauthorized access'})
+    }
+    next();
+};
+
+module.exports = {authMiddleware, authorize};

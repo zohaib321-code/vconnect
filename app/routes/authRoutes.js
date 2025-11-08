@@ -125,7 +125,11 @@ router.post('/authWithMail', async (req, res) => {
         return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const token = jwt.sign({ userId: user._id, type: user.type }, process.env.JWT_SECRET || 'your_jwt_secret_key_here', { expiresIn: '1h' });
+    const token = jwt.sign(
+      { userId: user._id, type: user.type },
+       process.env.JWT_SECRET, 
+       { expiresIn: '7d' }
+      );
 
     res.status(200).json({
         message: 'User authenticated successfully',
@@ -148,7 +152,7 @@ router.get('/authWithPhone', async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        const token = jwt.sign({ userId: user._id, type: user.type }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        const token = jwt.sign({ userId: user._id, type: user.type }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
         res.status(200).json({
             message: 'User found',

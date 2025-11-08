@@ -4,8 +4,9 @@ const router = express.Router();
 const Opportunity = require('../../models/opportunity');
 const UserProfile = require('../../models/userProfile');
 const OrgProfile = require('../../models/orgProfile')
+const {authMiddleware,authorize} = require('../../middleware/auth')
 // POST route to create an opportunity
-router.post('/', (req, res) => {
+router.post('/',authMiddleware, (req, res) => {
   const {
     userId,
     postMedia,
@@ -53,6 +54,71 @@ router.post('/', (req, res) => {
         error: err
       });
     });
+});
+
+// PUT route to update an opportunity
+router.put('/:id', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const {
+    title,
+    description,
+    purpose,
+    role,
+    additional_details,
+    location,
+    skillsRequired,
+    opportunityType,
+    dateTime,
+    tags,
+    postMedia
+  } = req.body;
+
+  try {
+    const opportunity = await Opportunity.findById(id);
+    if (!opportunity) {
+      return res.status(404).json({ message: 'Opportunity not found' });
+    }
+
+    // Verify ownership
+    if (opportunity.userId.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'Unauthorized: You can only edit your own opportunities' });
+    }
+
+    const updateData = {
+      title,
+      description,
+      purpose,
+      role,
+      additional_details,
+      skillsRequired,
+      opportunityType,
+      dateTime,
+      tags,
+      postMedia
+    };
+
+    if (location) {
+      updateData.location = {
+        type: 'Point',
+        coordinates: [location.longitude, location.latitude],
+        address: location.address
+      };
+    }
+
+    const updated = await Opportunity.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    res.status(200).json({
+      message: 'Opportunity updated successfully',
+      opportunity: updated
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error updating opportunity', error: err });
+  }
 });
 
 // GET route to fetch all opportunities
@@ -164,7 +230,7 @@ router.post('/search', async (req, res) => {
 });
 
 // GET route to fetch opportunities by organization ID
-router.get('/organization/:organizationId', (req, res) => {
+router.get('/organization/:organizationId',authMiddleware, (req, res) => {
   const { organizationId } = req.params;
   Opportunity.find({ userId: organizationId })
     .then((result) => {

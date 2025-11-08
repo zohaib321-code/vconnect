@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const OrgProfile = require('../../models/orgProfile');
+const {authMiddleware} = require('../../middleware/auth');
 
 // Create org profile
-router.post('/', async (req, res) => {
+router.post('/',authMiddleware, async (req, res) => {
 
     const newProfile = new OrgProfile(req.body);
     newProfile.save()
@@ -23,7 +24,7 @@ router.post('/', async (req, res) => {
 });
 
 // Get all organization profiles
-router.get('/', async (req, res) => {
+router.get('/',authMiddleware, async (req, res) => {
     try {
       const orgProfiles = await OrgProfile.find();
       res.status(200).json(orgProfiles);
@@ -33,7 +34,7 @@ router.get('/', async (req, res) => {
   });
   
 // Get org profile by userId
-router.get('/:userId', async (req, res) => {
+router.get('/:userId',authMiddleware, async (req, res) => {
   try {
     const profile = await OrgProfile.findOne({ userId: req.params.userId });
     if (!profile) return res.status(404).json({ message: 'Profile not found' });
@@ -44,7 +45,7 @@ router.get('/:userId', async (req, res) => {
 });
 
 // Update org profile by userId
-router.put('/:userId', async (req, res) => {
+router.put('/:userId',authMiddleware, async (req, res) => {
   try {
     const updatedProfile = await OrgProfile.findOneAndUpdate(
       { userId: req.params.userId },
@@ -59,7 +60,7 @@ router.put('/:userId', async (req, res) => {
 });
 
 // Delete org profile by userId
-router.delete('/:userId', async (req, res) => {
+router.delete('/:userId',authMiddleware, async (req, res) => {
   try {
     const deleted = await OrgProfile.findOneAndDelete({ userId: req.params.userId });
     if (!deleted) return res.status(404).json({ message: 'Profile not found' });
