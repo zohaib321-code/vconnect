@@ -141,6 +141,33 @@ router.post('/friend-request/accept', async (req, res) => {
         res.status(500).json({ error: 'Failed to accept friend request' });
     }
 });
+// Cancel a pending friend request
+router.post('/friend-request/cancel', async (req, res) => {
+    const { requesterId, recipientId } = req.body;
+
+    if (!requesterId || !recipientId) {
+        return res.status(400).json({ error: 'requesterId and recipientId are required' });
+    }
+
+    try {
+        // Either side can cancel the request if it's still pending
+        const friendship = await Friendship.findOneAndDelete({
+            $or: [
+                { requester: requesterId, recipient: recipientId, status: 'pending' },
+                { requester: recipientId, recipient: requesterId, status: 'pending' },
+            ],
+        });
+
+        if (!friendship) {
+            return res.status(404).json({ error: 'Friendship not found' });
+        }
+
+        res.status(200).json({ message: 'Friend request canceled successfully' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to cancel friend request' });
+    }
+});
 
 // Remove/unfriend
 router.post('/friend/remove', async (req, res) => {
