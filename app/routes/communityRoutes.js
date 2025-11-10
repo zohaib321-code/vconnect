@@ -5,6 +5,8 @@ const Post = require('../../models/communityposts');
 const Comment = require('../../models/comments');
 const Reply = require('../../models/replies');
 
+const Profile = require('../../models/userProfile');
+
 // ==========================
 // 🔹 POST ROUTES
 // ==========================
@@ -21,22 +23,12 @@ router.post('/posts', async (req, res) => {
   }
 });
 
-// Get all posts (newest first)
+// Get all posts (newest first) with author info
 router.get('/posts', async (req, res) => {
   try {
     const posts = await Post.find()
       .sort({ createdAt: -1 })
-      .populate('userId', 'name profilePic')
-      .populate({
-        path: 'comments',
-        populate: [
-          { path: 'userId', select: 'name profilePic' },
-          {
-            path: 'replies',
-            populate: { path: 'userId', select: 'name profilePic' },
-          },
-        ],
-      });
+      .populate('author', 'Name profilePicture'); // virtual author
 
     res.json(posts);
   } catch (error) {
@@ -49,15 +41,11 @@ router.post('/posts/:postId/like', async (req, res) => {
   try {
     const { userId } = req.body;
     const post = await Post.findById(req.params.postId);
-
     if (!post) return res.status(404).json({ message: 'Post not found' });
 
     const alreadyLiked = post.likes.includes(userId);
-    if (alreadyLiked) {
-      post.likes.pull(userId);
-    } else {
-      post.likes.push(userId);
-    }
+    if (alreadyLiked) post.likes.pull(userId);
+    else post.likes.push(userId);
 
     await post.save();
     res.json({ likes: post.likes.length, liked: !alreadyLiked });
@@ -87,16 +75,12 @@ router.post('/posts/:postId/comments', async (req, res) => {
   }
 });
 
-// Get all comments for a post
+// Get all comments for a post (newest first) with author info
 router.get('/posts/:postId/comments', async (req, res) => {
   try {
     const comments = await Comment.find({ postId: req.params.postId })
       .sort({ createdAt: -1 })
-      .populate('userId', 'name profilePic')
-      .populate({
-        path: 'replies',
-        populate: { path: 'userId', select: 'name profilePic' },
-      });
+      .populate('author', 'Name profilePicture'); // virtual author only
 
     res.json(comments);
   } catch (error) {
@@ -125,12 +109,12 @@ router.post('/comments/:commentId/replies', async (req, res) => {
   }
 });
 
-// Get all replies for a comment
+// Get all replies for a comment (oldest first) with author info
 router.get('/comments/:commentId/replies', async (req, res) => {
   try {
     const replies = await Reply.find({ commentId: req.params.commentId })
       .sort({ createdAt: 1 })
-      .populate('userId', 'name profilePic');
+      .populate('author', 'Name profilePicture'); // virtual author only
 
     res.json(replies);
   } catch (error) {

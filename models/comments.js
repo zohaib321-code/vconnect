@@ -22,9 +22,22 @@ const commentSchema = new Schema({
   }]
 }, { timestamps: true });
 
-const Comment = mongoose.model('Comment', commentSchema);
+
+commentSchema.virtual('author', {
+  ref: 'Profile',          // model to populate
+  localField: 'userId',    // field in Comment
+  foreignField: 'userId',  // field in Profile
+  justOne: true            // one profile per comment
+});
+
+commentSchema.set('toObject', { virtuals: true });
+commentSchema.set('toJSON', { virtuals: true });
 
 commentSchema.index({ postId: 1, createdAt: -1 }); // fast comment fetch per post
 commentSchema.index({ userId: 1 });                // get all comments by user
+
+
+
+const Comment = mongoose.model('Comment', commentSchema);
 
 module.exports = Comment;

@@ -29,10 +29,22 @@ const postSchema = new Schema({
   }]
 }, { timestamps: true });
 
-const Post = mongoose.model('Post', postSchema);
+postSchema.virtual('author', {
+  ref: 'Profile',          // the model to populate
+  localField: 'userId',    // field in Post
+  foreignField: 'userId',  // field in Profile
+  justOne: true            // because each post has one author
+});
+
+postSchema.set('toObject', { virtuals: true });
+postSchema.set('toJSON', { virtuals: true });
+
 
 postSchema.index({ userId: 1, createdAt: -1 }); // get user's latest posts fast
 postSchema.index({ createdAt: -1 });            // feed sorting
 postSchema.index({ title: 'text', description: 'text' });
+
+const Post = mongoose.model('Post', postSchema);
+
 
 module.exports = Post;

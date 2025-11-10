@@ -18,9 +18,20 @@ const replySchema = new Schema({
   }
 }, { timestamps: true });
 
-const Reply = mongoose.model('Reply', replySchema);
+
+replySchema.virtual('author', {
+  ref: 'Profile',
+  localField: 'userId',
+  foreignField: 'userId',
+  justOne: true
+});
+
+replySchema.set('toObject', { virtuals: true });
+replySchema.set('toJSON', { virtuals: true });
 
 replySchema.index({ commentId: 1, createdAt: 1 }); // quick replies per comment
-replySchema.index({ userId: 1 });                  // find all replies by user (if ever needed)
+replySchema.index({ userId: 1 });    
+
+const Reply = mongoose.model('Reply', replySchema);
 
 module.exports = Reply;
