@@ -10,6 +10,7 @@ const orgProfileRoutes = require('./routes/orgProfileRoutes');
 const SecureImage = require('./routes/mediaRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const socialRoutes = require('./routes/socialRoutes');
+const communityRoutes = require('./routes/communityRoutes');
 const app = express();
 const port = 5000; 
  
@@ -52,3 +53,4 @@ app.use('/', userRoutes);
 app.use('/opportunity', opportunityRoutes);
 app.use('/oppRegistration', oppRegistrationRoutes);
 app.use('/orgProfile', orgProfileRoutes);
+app.use('/community', communityRoutes);
