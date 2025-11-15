@@ -4,9 +4,9 @@ const router = express.Router();
 
 const Follow = require('../../models/follows');
 const Friendship = require('../../models/friends');
-const User = require('../../models/user');
-const Profile = require('../../models/userProfile');               // user profiles
-const OrganizationProfile = require('../../models/orgProfile'); // org profiles
+// const User = require('../../models/user');
+// const Profile = require('../../models/userProfile');               
+// const OrganizationProfile = require('../../models/orgProfile'); 
 
 /**
  * =========================

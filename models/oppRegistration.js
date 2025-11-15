@@ -4,17 +4,17 @@ const Schema = mongoose.Schema;
 
 const oppRegistrationSchema = new Schema({
     userId: {
-        type: Schema.Types.ObjectId, // ObjectId to reference the User model
-        ref: 'User', // Reference to the 'User' model (poster)
+        type: Schema.Types.ObjectId, 
+        ref: 'User', 
         required: true
     },
     opportunityId:{
-        type: Schema.Types.ObjectId, // ObjectId to reference the User model
+        type: Schema.Types.ObjectId, 
         ref: 'Opportunity',
         required: true
     },
     status:{
-        type: String, // ObjectId to reference the User model
+        type: String, 
         required: true
     }
 },{timestamps: true});

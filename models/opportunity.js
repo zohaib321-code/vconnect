@@ -39,7 +39,7 @@ const opportunitySchema = new Schema({
             required: true
         },
         coordinates: {
-            type: [Number], // [longitude, latitude]
+            type: [Number],
             required: true
         },
         address: {
@@ -57,7 +57,7 @@ const opportunitySchema = new Schema({
         required: true
     },
     tags: {
-        type: [String], // Example: ['Environment', 'Healthcare', 'Teaching']
+        type: [String], 
         required: false
     },
     dateTime: [{
