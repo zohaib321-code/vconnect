@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const OppRegistration = require('../../models/oppRegistration');
 const {authMiddleware} = require('../../middleware/auth');
+const UserProfile = require('../../models/userProfile');
 
 router.use(authMiddleware);
 // POST route for adding opportunity registration
@@ -85,35 +86,99 @@ router.post('/check',authMiddleware, (req, res) => {
 });
 
 // GET route to fetch all applications for organization's opportunities
-router.get('/org/:orgId', authMiddleware, (req, res) => {
-  const { orgId } = req.params;
-  OppRegistration.find()
-    .populate({
-      path: 'opportunityId',
-      match: { organization: orgId },
-      populate: { path: 'organization' }
-    })
-    .populate('userId', 'name email')
-    .then(results => {
-      const apps = results
-        .filter(r => r.opportunityId) 
-        .map(r => ({
+router.get('/org/:orgId', authMiddleware, async (req, res) => {
+  try {
+    const { orgId } = req.params;
+
+    // Step 1: Get all registrations where the opportunity belongs to this org
+    const registrations = await OppRegistration.find()
+      .populate({
+        path: "opportunityId",
+        populate: {
+          path: "userId", // org who created the opportunity
+          select: "name email"
+        }
+      })
+      .populate({
+        path: "userId", // volunteer who applied
+        select: "name email"
+      });
+
+    const output = [];
+
+    for (const r of registrations) {
+      if (
+        r.opportunityId &&
+        r.opportunityId.userId &&
+        r.opportunityId.userId._id.toString() === orgId
+      ) {
+        // Fetch volunteer profile
+        const profile = await UserProfile.findOne({
+          userId: r.userId._id
+        });
+
+        output.push({
           _id: r._id,
           volunteer: {
-            name: r.userId?.name || 'Unknown',
-            email: r.userId?.email || '',
+            name: profile?.Name || r.userId?.name || "Unknown",
+            email: r.userId?.email || "",
+            profilePicture: profile?.profilePicture || null,
+            bio: profile?.bio || "",
+            skills: profile?.skills || [],
+            interests: profile?.interests || [],
+            bloodGroup: profile?.bloodGroup || null,
+            isBloodDonor: profile?.isBloodDonor || false
           },
-          opportunity: r.opportunityId.title,
+          opportunity: r.opportunityId?.title || "",
           appliedAt: r.createdAt,
           status: r.status,
-          message: r.message || ''
-        }));
-      res.status(200).json(apps);
-    })
-    .catch(err => {
-      console.error(err);
-      res.status(500).json({ message: 'Error fetching applications' });
-    });
+        });
+      }
+    }
+
+    return res.status(200).json(output);
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Error fetching applications" });
+  }
 });
+
+// PATCH route to update application status (accept/reject)
+router.patch('/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    // Validate input
+    if (!["accepted", "rejected", "pending"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status value" });
+    }
+
+    const updated = await OppRegistration.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ message: "Application not found" });
+    }
+
+    return res.status(200).json({
+      message: `Application ${status} successfully`,
+      application: updated,
+    });
+
+  } catch (err) {
+    console.error("Error updating application status:", err);
+    return res.status(500).json({
+      message: "Server error while updating status",
+      error: err,
+    });
+  }
+});
+
+
 
 module.exports = router;
