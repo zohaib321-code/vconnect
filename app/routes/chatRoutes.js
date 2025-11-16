@@ -16,16 +16,20 @@ router.post("/conversation", async (req, res) => {
       return res.status(400).json({ message: "User IDs required" });
     }
 
+    // Convert to ObjectId for consistency
+    const objId1 = new mongoose.Types.ObjectId(userId1);
+    const objId2 = new mongoose.Types.ObjectId(userId2);
+
     // Check if conversation exists
     let conversation = await Conversation.findOne({
-      participants: { $all: [userId1, userId2] },
+      participants: { $all: [objId1, objId2] },
       type: "private",
     });
 
     if (!conversation) {
       // Create a new one
       conversation = await Conversation.create({
-        participants: [userId1, userId2],
+        participants: [objId1, objId2],
         unreadCounts: {
           [userId1]: 0,
           [userId2]: 0,
@@ -48,7 +52,7 @@ router.get("/conversations/:userId", async (req, res) => {
     const { userId } = req.params;
 
     const conversations = await Conversation.aggregate([
-      { $match: { participants: mongoose.Types.ObjectId(userId) } },
+      { $match: { participants: new mongoose.Types.ObjectId(userId) } },
       { $sort: { updatedAt: -1 } },
       {
         $lookup: {
@@ -78,7 +82,7 @@ router.get("/conversations/:userId", async (req, res) => {
     res.json(conversations);
   } catch (err) {
     console.error("Error:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -89,7 +93,9 @@ router.get("/messages/:conversationId", async (req, res) => {
   try {
     const { conversationId } = req.params;
 
-    const messages = await Message.find({ conversationId })
+    const messages = await Message.find({
+      conversationId: new mongoose.Types.ObjectId(conversationId),
+    })
       .sort({ createdAt: 1 }) // ascending (oldest → newest)
       .populate("sender", "name phone avatar");
 
@@ -112,21 +118,24 @@ router.post("/message", async (req, res) => {
     }
 
     const message = await Message.create({
-      conversationId,
-      sender,
+      conversationId: new mongoose.Types.ObjectId(conversationId),
+      sender: new mongoose.Types.ObjectId(sender),
       text: text || "",
       media: media || null,
       delivered: [],
-      readBy: [sender],
+      readBy: [new mongoose.Types.ObjectId(sender)],
     });
 
-    const conversation = await Conversation.findById(conversationId);
+    const conversation = await Conversation.findById(
+      new mongoose.Types.ObjectId(conversationId)
+    );
 
     conversation.lastMessage = {
       text: text || (media ? "📷 Photo" : ""),
       timestamp: new Date(),
     };
 
+    // Increase unread count for other participants
     conversation.participants.forEach((userId) => {
       if (String(userId) !== String(sender)) {
         conversation.unreadCounts.set(
@@ -153,13 +162,19 @@ router.post("/messages/mark-read", async (req, res) => {
     const { conversationId, userId } = req.body;
 
     await Message.updateMany(
-      { conversationId, readBy: { $ne: userId } },
-      { $push: { readBy: userId } }
+      {
+        conversationId: new mongoose.Types.ObjectId(conversationId),
+        readBy: { $ne: new mongoose.Types.ObjectId(userId) },
+      },
+      { $push: { readBy: new mongoose.Types.ObjectId(userId) } }
     );
 
-    await Conversation.findByIdAndUpdate(conversationId, {
-      $set: { [`unreadCounts.${userId}`]: 0 },
-    });
+    await Conversation.findByIdAndUpdate(
+      new mongoose.Types.ObjectId(conversationId),
+      {
+        $set: { [`unreadCounts.${userId}`]: 0 },
+      }
+    );
 
     res.json({ success: true });
   } catch (err) {
@@ -173,7 +188,7 @@ router.post("/messages/mark-read", async (req, res) => {
 //----------------------------------------------------
 router.delete("/message/:messageId", async (req, res) => {
   try {
-    await Message.findByIdAndDelete(req.params.messageId);
+    await Message.findByIdAndDelete(new mongoose.Types.ObjectId(req.params.messageId));
     res.json({ success: true });
   } catch (err) {
     console.error("Error:", err);
@@ -182,14 +197,16 @@ router.delete("/message/:messageId", async (req, res) => {
 });
 
 //----------------------------------------------------
-// 7. Delete entire conversation (optional)
+// 7. Delete entire conversation
 //----------------------------------------------------
 router.delete("/conversation/:conversationId", async (req, res) => {
   try {
     const { conversationId } = req.params;
 
-    await Message.deleteMany({ conversationId });
-    await Conversation.findByIdAndDelete(conversationId);
+    await Message.deleteMany({
+      conversationId: new mongoose.Types.ObjectId(conversationId),
+    });
+    await Conversation.findByIdAndDelete(new mongoose.Types.ObjectId(conversationId));
 
     res.json({ success: true });
   } catch (err) {
