@@ -206,13 +206,13 @@ router.post('/friends', async (req, res) => {
         }).populate({
             path: 'requester',
             model: 'Profile',
-            select: 'name email profilePicture userId',
+            select: 'Name email profilePicture userId',
             localField: 'requester',
             foreignField: 'userId'
         }).populate({
             path: 'recipient',
             model: 'Profile',
-            select: 'name email profilePicture userId',
+            select: 'Name email profilePicture userId',
             localField: 'recipient',
             foreignField: 'userId'
         });
