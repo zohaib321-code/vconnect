@@ -1,5 +1,6 @@
 // chatRoutes.js
 const express = require("express");
+const mongoose = require("mongoose");
 const router = express.Router();
 const Conversation = require("../../models/conversations");
 const Message = require("../../models/messages");
@@ -40,17 +41,39 @@ router.post("/conversation", async (req, res) => {
 });
 
 //----------------------------------------------------
-// 2. Get all conversations for a user
+// 2. Get all conversations for a user (with Profile info)
 //----------------------------------------------------
 router.get("/conversations/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const conversations = await Conversation.find({
-      participants: userId,
-    })
-      .populate("participants", "name phone avatar")
-      .sort({ updatedAt: -1 });
+    const conversations = await Conversation.aggregate([
+      { $match: { participants: mongoose.Types.ObjectId(userId) } },
+      { $sort: { updatedAt: -1 } },
+      {
+        $lookup: {
+          from: "profiles", // Profile collection
+          localField: "participants", // user IDs in conversation
+          foreignField: "userId", // Profile.userId
+          as: "participantProfiles",
+        },
+      },
+      {
+        $project: {
+          participants: 1,
+          lastMessage: 1,
+          type: 1,
+          unreadCounts: 1,
+          updatedAt: 1,
+          participantProfiles: {
+            _id: 1,
+            userId: 1,
+            Name: 1,
+            profilePicture: 1,
+          },
+        },
+      },
+    ]);
 
     res.json(conversations);
   } catch (err) {
@@ -88,17 +111,15 @@ router.post("/message", async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    // Create message
     const message = await Message.create({
       conversationId,
       sender,
       text: text || "",
       media: media || null,
-      delivered: [], // will update later
-      readBy: [sender], // sender has "read" his own message
+      delivered: [],
+      readBy: [sender],
     });
 
-    // Update conversation last message & unread counts
     const conversation = await Conversation.findById(conversationId);
 
     conversation.lastMessage = {
@@ -106,7 +127,6 @@ router.post("/message", async (req, res) => {
       timestamp: new Date(),
     };
 
-    // Increase unread count for other participants
     conversation.participants.forEach((userId) => {
       if (String(userId) !== String(sender)) {
         conversation.unreadCounts.set(
@@ -133,16 +153,10 @@ router.post("/messages/mark-read", async (req, res) => {
     const { conversationId, userId } = req.body;
 
     await Message.updateMany(
-      {
-        conversationId,
-        readBy: { $ne: userId },
-      },
-      {
-        $push: { readBy: userId },
-      }
+      { conversationId, readBy: { $ne: userId } },
+      { $push: { readBy: userId } }
     );
 
-    // Reset unread count in conversation
     await Conversation.findByIdAndUpdate(conversationId, {
       $set: { [`unreadCounts.${userId}`]: 0 },
     });
