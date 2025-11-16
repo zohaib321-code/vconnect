@@ -19,6 +19,10 @@ const MessageSchema = new mongoose.Schema({
     type: String,  // optional media URL (image, video)
     default: null
   },
+  delivered: [{
+    type: Boolean,
+    default: false
+  }],
   readBy: [
     { 
         type: mongoose.Schema.Types.ObjectId, 

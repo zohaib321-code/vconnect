@@ -11,6 +11,8 @@ const SecureImage = require('./routes/mediaRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const socialRoutes = require('./routes/socialRoutes');
 const communityRoutes = require('./routes/communityRoutes');
+const chatRoutes = require('./routes/chatRoutes');
+
 const app = express();
 const port = 5000; 
  
@@ -50,6 +52,7 @@ app.use('/media', SecureImage);
 app.use('/notification', notificationRoutes);
 app.use('/', socialRoutes);
 app.use('/', userRoutes);
+app.use('/', chatRoutes);
 app.use('/opportunity', opportunityRoutes);
 app.use('/oppRegistration', oppRegistrationRoutes);
 app.use('/orgProfile', orgProfileRoutes);
