@@ -86,6 +86,48 @@ router.get("/conversations/:userId", async (req, res) => {
   }
 });
 
+// Get a single conversation with participant profiles
+router.get("/conversation/:conversationId", async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+
+    const conversation = await Conversation.aggregate([
+      { $match: { _id: new mongoose.Types.ObjectId(conversationId) } },
+      {
+        $lookup: {
+          from: "profiles",
+          localField: "participants",
+          foreignField: "userId",
+          as: "participantProfiles",
+        },
+      },
+      {
+        $project: {
+          participants: 1,
+          lastMessage: 1,
+          type: 1,
+          unreadCounts: 1,
+          updatedAt: 1,
+          participantProfiles: {
+            _id: 1,
+            userId: 1,
+            Name: 1,
+            profilePicture: 1,
+          },
+        },
+      },
+    ]);
+
+    if (!conversation || conversation.length === 0) {
+      return res.status(404).json({ message: "Conversation not found" });
+    }
+
+    res.json(conversation[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 //----------------------------------------------------
 // 3. Get messages of a conversation
 //----------------------------------------------------
