@@ -128,6 +128,7 @@ router.get("/conversation/:conversationId", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
 //----------------------------------------------------
 // 3. Get messages of a conversation
 //----------------------------------------------------
@@ -159,6 +160,11 @@ router.post("/message", async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
+    const User = require("../../models/user");
+    const Profile = require("../../models/userProfile");
+    const { sendNewMessageNotification } = require("../utils/pushNotificationService");
+    const { activeUsers } = require("../socketHandler");
+
     const message = await Message.create({
       conversationId: new mongoose.Types.ObjectId(conversationId),
       sender: new mongoose.Types.ObjectId(sender),
@@ -189,20 +195,52 @@ router.post("/message", async (req, res) => {
 
     await conversation.save();
 
+    // Get sender's profile to include Name field
+    const senderProfile = await Profile.findOne({ userId: sender }).select('Name profilePicture');
+
+    // Populate sender info from User model
+    const populatedMessage = await Message.findById(message._id)
+      .populate('sender', 'phone avatar');
+
+    // Create the message object with sender Name from Profile
+    const messageWithProfile = {
+      ...populatedMessage.toObject(),
+      sender: {
+        _id: populatedMessage.sender._id,
+        Name: senderProfile?.Name || 'Unknown User',
+        profilePicture: senderProfile?.profilePicture || null,
+        phone: populatedMessage.sender.phone,
+      }
+    };
+
     // Emit Socket.IO event for real-time delivery
     const { getSocketInstance } = require('../socketHandler');
     const io = getSocketInstance();
     if (io) {
-      const populatedMessage = await Message.findById(message._id)
-        .populate('sender', 'name phone avatar');
-
       io.to(conversationId).emit('new_message', {
-        message: populatedMessage,
+        message: messageWithProfile,
         conversation: conversation,
       });
     }
 
-    res.json({ message, conversation });
+    // Send push notifications to offline users
+    const recipientIds = conversation.participants.filter(
+      userId => String(userId) !== String(sender)
+    );
+
+    if (recipientIds.length > 0) {
+      // Send push notifications asynchronously (don't await)
+      sendNewMessageNotification(
+        recipientIds,
+        activeUsers,
+        senderProfile?.Name || 'Someone',
+        text || '📷 Photo',
+        conversationId,
+        message._id
+      ).catch(err => console.error('Push notification error:', err));
+    }
+
+    res.json({ message: messageWithProfile, conversation });
   } catch (err) {
     console.error("Error:", err);
     res.status(500).json({ message: "Server error" });
