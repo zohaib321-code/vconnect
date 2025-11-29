@@ -64,6 +64,9 @@ function initializeSocket(io) {
     socket.on('send_message', async (data) => {
       try {
         const { conversationId, text, media } = data;
+        const User = require('../models/user');
+        const Profile = require('../models/userProfile');
+        const { sendNewMessageNotification } = require('./utils/pushNotificationService');
 
         // Create message in database
         const message = await Message.create({
@@ -96,15 +99,48 @@ function initializeSocket(io) {
           await conversation.save();
         }
 
-        // Populate sender info
+        // Get sender's profile to include Name field
+        const senderProfile = await Profile.findOne({ userId: socket.userId }).select('Name profilePicture');
+
+        // Populate sender info from User model
         const populatedMessage = await Message.findById(message._id)
-          .populate('sender', 'name phone avatar');
+          .populate('sender', 'phone avatar');
+
+        // Create the message object with sender Name from Profile
+        const messageWithProfile = {
+          ...populatedMessage.toObject(),
+          sender: {
+            _id: populatedMessage.sender._id,
+            Name: senderProfile?.Name || 'Unknown User',
+            profilePicture: senderProfile?.profilePicture || null,
+            phone: populatedMessage.sender.phone,
+          }
+        };
 
         // Emit to all users in the conversation room
         io.to(conversationId).emit('new_message', {
-          message: populatedMessage,
+          message: messageWithProfile,
           conversation: conversation,
         });
+
+        // Send push notifications to offline users
+        if (conversation) {
+          const recipientIds = conversation.participants.filter(
+            userId => String(userId) !== String(socket.userId)
+          );
+
+          if (recipientIds.length > 0) {
+            // Send push notifications asynchronously (don't await)
+            sendNewMessageNotification(
+              recipientIds,
+              activeUsers,
+              senderProfile?.Name || 'Someone',
+              text || '📷 Photo',
+              conversationId,
+              message._id
+            ).catch(err => console.error('Push notification error:', err));
+          }
+        }
 
       } catch (err) {
         console.error('Error sending message:', err);
