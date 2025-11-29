@@ -189,6 +189,19 @@ router.post("/message", async (req, res) => {
 
     await conversation.save();
 
+    // Emit Socket.IO event for real-time delivery
+    const { getSocketInstance } = require('../socketHandler');
+    const io = getSocketInstance();
+    if (io) {
+      const populatedMessage = await Message.findById(message._id)
+        .populate('sender', 'name phone avatar');
+
+      io.to(conversationId).emit('new_message', {
+        message: populatedMessage,
+        conversation: conversation,
+      });
+    }
+
     res.json({ message, conversation });
   } catch (err) {
     console.error("Error:", err);
@@ -218,6 +231,16 @@ router.post("/messages/mark-read", async (req, res) => {
       }
     );
 
+    // Emit Socket.IO event for read receipts
+    const { getSocketInstance } = require('../socketHandler');
+    const io = getSocketInstance();
+    if (io) {
+      io.to(conversationId).emit('messages_read', {
+        userId,
+        conversationId,
+      });
+    }
+
     res.json({ success: true });
   } catch (err) {
     console.error("Error:", err);
@@ -230,7 +253,21 @@ router.post("/messages/mark-read", async (req, res) => {
 //----------------------------------------------------
 router.delete("/message/:messageId", async (req, res) => {
   try {
-    await Message.findByIdAndDelete(new mongoose.Types.ObjectId(req.params.messageId));
+    const { messageId } = req.params;
+    const { conversationId } = req.query;
+
+    await Message.findByIdAndDelete(new mongoose.Types.ObjectId(messageId));
+
+    // Emit Socket.IO event for message deletion
+    const { getSocketInstance } = require('../socketHandler');
+    const io = getSocketInstance();
+    if (io && conversationId) {
+      io.to(conversationId).emit('message_deleted', {
+        messageId,
+        conversationId,
+      });
+    }
+
     res.json({ success: true });
   } catch (err) {
     console.error("Error:", err);
