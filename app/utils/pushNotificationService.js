@@ -169,7 +169,7 @@ async function sendNewMessageNotification(
             // Create notification with grouping
             return {
                 pushToken: user.pushToken,
-                title: `New message from ${senderName}`,
+                title: `${senderName}`,
                 body: messageText.length > 100 ? messageText.substring(0, 97) + '...' : messageText,
                 data: {
                     type: 'new_message',
