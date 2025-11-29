@@ -14,8 +14,8 @@ const communityRoutes = require('./routes/communityRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 
 const app = express();
-const port = 5000; 
- 
+const port = 5000;
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -24,8 +24,27 @@ const dburi = "mongodb+srv://vcon_user:vcon_pass@vconnect.8ot7y.mongodb.net/vCon
 mongoose.connect(dburi, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => {
     console.log("Connected to MongoDB");
-    app.listen(port, () => {
+
+    // Create HTTP server and integrate Socket.IO
+    const http = require('http');
+    const { Server } = require('socket.io');
+    const { initializeSocket, setSocketInstance } = require('./socketHandler');
+
+    const server = http.createServer(app);
+    const io = new Server(server, {
+      cors: {
+        origin: "*", // Configure this based on your frontend URL
+        methods: ["GET", "POST"]
+      }
+    });
+
+    // Initialize Socket.IO handlers
+    initializeSocket(io);
+    setSocketInstance(io);
+
+    server.listen(port, () => {
       console.log(`Server is now running at http://localhost:${port}`);
+      console.log('Socket.IO is ready for real-time connections');
     });
   })
   .catch((err) => {
