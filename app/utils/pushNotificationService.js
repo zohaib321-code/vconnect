@@ -43,7 +43,7 @@ async function sendPushNotification(pushToken, title, body, data = {}) {
 
 /**
  * Send push notifications to multiple users
- * @param {Array} notifications - Array of notification objects with {pushToken, title, body, data}
+ * @param {Array} notifications - Array of notification objects with {pushToken, title, body, data, badge, categoryIdentifier, channelId, collapseId}
  * @returns {Promise<Array>} - Results of the push notifications
  */
 async function sendBulkPushNotifications(notifications) {
@@ -52,7 +52,16 @@ async function sendBulkPushNotifications(notifications) {
 
         // Construct messages
         for (const notification of notifications) {
-            const { pushToken, title, body, data = {} } = notification;
+            const {
+                pushToken,
+                title,
+                body,
+                data = {},
+                badge,
+                categoryIdentifier,
+                channelId,
+                collapseId
+            } = notification;
 
             // Check that the push token is valid
             if (!Expo.isExpoPushToken(pushToken)) {
@@ -60,14 +69,30 @@ async function sendBulkPushNotifications(notifications) {
                 continue;
             }
 
-            messages.push({
+            const message = {
                 to: pushToken,
                 sound: 'default',
                 title: title,
                 body: body,
                 data: data,
                 priority: 'high',
-            });
+            };
+
+            // Add optional fields if provided
+            if (badge !== undefined) {
+                message.badge = badge;
+            }
+            if (categoryIdentifier) {
+                message.categoryIdentifier = categoryIdentifier;
+            }
+            if (channelId) {
+                message.channelId = channelId;
+            }
+            if (collapseId) {
+                message.collapseId = collapseId;
+            }
+
+            messages.push(message);
         }
 
         // The Expo push notification service accepts batches of notifications
@@ -92,7 +117,7 @@ async function sendBulkPushNotifications(notifications) {
 }
 
 /**
- * Send new message notification to offline users
+ * Send new message notification to offline users with grouping support
  * @param {Array} recipientUserIds - Array of user IDs who should receive notification
  * @param {Object} activeUsers - Map of currently active users
  * @param {String} senderName - Name of the message sender
@@ -110,6 +135,7 @@ async function sendNewMessageNotification(
 ) {
     try {
         const User = require('../../models/user');
+        const Conversation = require('../../models/conversations');
 
         // Find offline users (not in activeUsers map)
         const offlineUserIds = recipientUserIds.filter(
@@ -132,17 +158,32 @@ async function sendNewMessageNotification(
             return;
         }
 
-        // Prepare notifications
-        const notifications = offlineUsers.map(user => ({
-            pushToken: user.pushToken,
-            title: `New message from ${senderName}`,
-            body: messageText.length > 100 ? messageText.substring(0, 97) + '...' : messageText,
-            data: {
-                type: 'new_message',
-                conversationId: String(conversationId),
-                messageId: String(messageId),
-                senderId: String(recipientUserIds[0]), // The sender's ID
-            }
+        // Get conversation details for grouping
+        const conversation = await Conversation.findById(conversationId);
+
+        // Prepare notifications with grouping and badge support
+        const notifications = await Promise.all(offlineUsers.map(async (user) => {
+            // Get unread count for badge
+            const unreadCount = conversation?.unreadCounts?.get(String(user._id)) || 1;
+
+            // Create notification with grouping
+            return {
+                pushToken: user.pushToken,
+                title: `New message from ${senderName}`,
+                body: messageText.length > 100 ? messageText.substring(0, 97) + '...' : messageText,
+                data: {
+                    type: 'new_message',
+                    conversationId: String(conversationId),
+                    messageId: String(messageId),
+                    senderName: senderName,
+                },
+                badge: unreadCount,
+                // Grouping configuration
+                categoryIdentifier: 'message',
+                channelId: 'chat-messages',
+                // Group by conversation
+                collapseId: String(conversationId),
+            };
         }));
 
         // Send notifications
