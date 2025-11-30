@@ -476,7 +476,7 @@ router.delete("/group/:conversationId/remove-participant", async (req, res) => {
 //----------------------------------------------------
 // 11. Get Group Chat for Opportunity
 //----------------------------------------------------
-router.get("/opportunity/:opportunityId", async (req, res) => {
+router.get("/group/:opportunityId", async (req, res) => {
   try {
     const { opportunityId } = req.params;
 
