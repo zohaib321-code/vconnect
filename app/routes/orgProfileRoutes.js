@@ -4,7 +4,7 @@ const OrgProfile = require('../../models/orgProfile');
 const {authMiddleware} = require('../../middleware/auth');
 
 // Create org profile
-router.post('/',authMiddleware, async (req, res) => {
+router.post('/', async (req, res) => {
 
     const newProfile = new OrgProfile(req.body);
     newProfile.save()
