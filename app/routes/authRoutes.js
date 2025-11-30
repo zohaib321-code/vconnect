@@ -220,10 +220,13 @@ router.post('/organization/request-otp', async (req, res) => {
     }
 
     const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
       service: 'gmail',
       auth: {
         user: 'amitammi24@gmail.com',
-        pass: 'zqfr nfma xuhd oour',
+        pass: 'bteo chnd kmoa sawg',
       },
     });
 
