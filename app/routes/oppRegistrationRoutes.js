@@ -2,12 +2,12 @@
 const express = require('express');
 const router = express.Router();
 const OppRegistration = require('../../models/oppRegistration');
-const {authMiddleware} = require('../../middleware/auth');
+const { authMiddleware } = require('../../middleware/auth');
 const UserProfile = require('../../models/userProfile');
 
 router.use(authMiddleware);
 // POST route for adding opportunity registration
-router.post('/',authMiddleware, (req, res) => {
+router.post('/', authMiddleware, (req, res) => {
   const { opportunityId, userId, status } = req.body;
   const oppRegistration = new OppRegistration({
     opportunityId,
@@ -32,7 +32,7 @@ router.post('/',authMiddleware, (req, res) => {
 });
 
 // GET route to fetch all opportunity registrations for a user
-router.get('/:userId',authMiddleware, (req, res) => {
+router.get('/:userId', authMiddleware, (req, res) => {
   const { userId } = req.params;
   OppRegistration.find({ userId: userId })
     .populate('opportunityId')
@@ -49,27 +49,32 @@ router.get('/:userId',authMiddleware, (req, res) => {
 });
 
 // DELETE route to remove a specific registration
-router.delete('/',authMiddleware, (req, res) => {
-  const { userId, opportunityId } = req.body;
+router.delete('/', authMiddleware, async (req, res) => {
+  try {
+    const { userId, opportunityId } = req.body;
 
-  OppRegistration.findOneAndDelete({ userId, opportunityId })
-    .then(result => {
-      if (!result) {
-        return res.status(404).json({ message: 'No registration found to delete' });
-      }
-      res.status(200).json({ message: 'Registration deleted successfully' });
-    })
-    .catch(err => {
-      console.error(err);
-      res.status(500).json({
-        message: 'Error deleting registration',
-        error: err
-      });
+    const result = await OppRegistration.findOneAndDelete({ userId, opportunityId });
+
+    if (!result) {
+      return res.status(404).json({ message: 'No registration found to delete' });
+    }
+
+    // Remove user from group chat if they're in one
+    const { removeUserFromOpportunityChat } = require('../utils/groupChatHelper');
+    await removeUserFromOpportunityChat(opportunityId, userId);
+
+    res.status(200).json({ message: 'Registration deleted successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      message: 'Error deleting registration',
+      error: err
     });
+  }
 });
 
 // POST route to check if a registration exists
-router.post('/check',authMiddleware, (req, res) => {
+router.post('/check', authMiddleware, (req, res) => {
   const { userId, opportunityId } = req.body;
 
   OppRegistration.exists({ userId, opportunityId })
@@ -159,10 +164,42 @@ router.patch('/:id', authMiddleware, async (req, res) => {
       id,
       { status },
       { new: true }
-    );
+    ).populate('opportunityId').populate('userId');
 
     if (!updated) {
       return res.status(404).json({ message: "Application not found" });
+    }
+
+    // Handle group chat participant management
+    const { addUserToOpportunityChat, removeUserFromOpportunityChat } = require('../utils/groupChatHelper');
+    const { sendPushNotification } = require('../utils/pushNotificationService');
+    const Profile = require('../../models/userProfile');
+
+    if (status === "accepted") {
+      // Add user to group chat
+      const conversation = await addUserToOpportunityChat(
+        updated.opportunityId._id.toString(),
+        updated.userId._id.toString()
+      );
+
+      // Send notification about being added to group chat
+      if (conversation) {
+        const userProfile = await Profile.findOne({ userId: updated.userId._id });
+        if (userProfile && userProfile.expoPushToken) {
+          sendPushNotification(
+            userProfile.expoPushToken,
+            'Added to Group Chat',
+            `You've been added to the group chat for ${updated.opportunityId.title}`,
+            { conversationId: conversation._id.toString(), type: 'group_chat_added' }
+          ).catch(err => console.error('Push notification error:', err));
+        }
+      }
+    } else if (status === "rejected") {
+      // Remove user from group chat
+      await removeUserFromOpportunityChat(
+        updated.opportunityId._id.toString(),
+        updated.userId._id.toString()
+      );
     }
 
     return res.status(200).json({

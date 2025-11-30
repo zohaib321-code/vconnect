@@ -67,6 +67,8 @@ router.get("/conversations/:userId", async (req, res) => {
           participants: 1,
           lastMessage: 1,
           type: 1,
+          name: 1,
+          opportunityId: 1,
           unreadCounts: 1,
           updatedAt: 1,
           participantProfiles: {
@@ -106,6 +108,8 @@ router.get("/conversation/:conversationId", async (req, res) => {
           participants: 1,
           lastMessage: 1,
           type: 1,
+          name: 1,
+          opportunityId: 1,
           unreadCounts: 1,
           updatedAt: 1,
           participantProfiles: {
@@ -326,6 +330,246 @@ router.delete("/conversation/:conversationId", async (req, res) => {
     await Conversation.findByIdAndDelete(new mongoose.Types.ObjectId(conversationId));
 
     res.json({ success: true });
+  } catch (err) {
+    console.error("Error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+//----------------------------------------------------
+// 8. Create Group Chat for Opportunity
+//----------------------------------------------------
+router.post("/group", async (req, res) => {
+  try {
+    const { opportunityId, name, createdBy, initialParticipants } = req.body;
+
+    if (!opportunityId || !name || !createdBy) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    const { createOpportunityChat } = require("../utils/groupChatHelper");
+
+    const conversation = await createOpportunityChat(
+      opportunityId,
+      name,
+      createdBy,
+      initialParticipants || []
+    );
+
+    res.json(conversation);
+  } catch (err) {
+    console.error("Error:", err);
+    if (err.message === 'Group chat already exists for this opportunity') {
+      return res.status(409).json({ message: err.message });
+    }
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+//----------------------------------------------------
+// 9. Add Participant to Group Chat
+//----------------------------------------------------
+router.post("/group/:conversationId/add-participant", async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID required" });
+    }
+
+    const conversation = await Conversation.findById(
+      new mongoose.Types.ObjectId(conversationId)
+    );
+
+    if (!conversation) {
+      return res.status(404).json({ message: "Conversation not found" });
+    }
+
+    if (conversation.type !== "group") {
+      return res.status(400).json({ message: "Not a group conversation" });
+    }
+
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
+    // Check if user is already a participant
+    const isParticipant = conversation.participants.some(
+      p => p.toString() === userId
+    );
+
+    if (isParticipant) {
+      return res.json({ message: "User already in group", conversation });
+    }
+
+    // Add user to participants
+    conversation.participants.push(userObjectId);
+    conversation.unreadCounts.set(userId, 0);
+    await conversation.save();
+
+    // Emit socket event
+    const { getSocketInstance } = require('../socketHandler');
+    const io = getSocketInstance();
+    if (io) {
+      io.to(conversationId).emit('participant_added', {
+        conversationId,
+        userId,
+        participants: conversation.participants
+      });
+    }
+
+    res.json(conversation);
+  } catch (err) {
+    console.error("Error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+//----------------------------------------------------
+// 10. Remove Participant from Group Chat
+//----------------------------------------------------
+router.delete("/group/:conversationId/remove-participant", async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID required" });
+    }
+
+    const conversation = await Conversation.findById(
+      new mongoose.Types.ObjectId(conversationId)
+    );
+
+    if (!conversation) {
+      return res.status(404).json({ message: "Conversation not found" });
+    }
+
+    if (conversation.type !== "group") {
+      return res.status(400).json({ message: "Not a group conversation" });
+    }
+
+    // Remove user from participants
+    conversation.participants = conversation.participants.filter(
+      p => p.toString() !== userId
+    );
+    conversation.unreadCounts.delete(userId);
+    await conversation.save();
+
+    // Emit socket event
+    const { getSocketInstance } = require('../socketHandler');
+    const io = getSocketInstance();
+    if (io) {
+      io.to(conversationId).emit('participant_removed', {
+        conversationId,
+        userId,
+        participants: conversation.participants
+      });
+    }
+
+    res.json(conversation);
+  } catch (err) {
+    console.error("Error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+//----------------------------------------------------
+// 11. Get Group Chat for Opportunity
+//----------------------------------------------------
+router.get("/opportunity/:opportunityId", async (req, res) => {
+  try {
+    const { opportunityId } = req.params;
+
+    const conversation = await Conversation.aggregate([
+      {
+        $match: {
+          opportunityId: new mongoose.Types.ObjectId(opportunityId),
+          type: "group"
+        }
+      },
+      {
+        $lookup: {
+          from: "profiles",
+          localField: "participants",
+          foreignField: "userId",
+          as: "participantProfiles"
+        }
+      },
+      {
+        $lookup: {
+          from: "opportunities",
+          localField: "opportunityId",
+          foreignField: "_id",
+          as: "opportunity"
+        }
+      },
+      {
+        $project: {
+          participants: 1,
+          lastMessage: 1,
+          type: 1,
+          name: 1,
+          opportunityId: 1,
+          unreadCounts: 1,
+          updatedAt: 1,
+          participantProfiles: {
+            _id: 1,
+            userId: 1,
+            Name: 1,
+            profilePicture: 1
+          },
+          opportunity: { $arrayElemAt: ["$opportunity", 0] }
+        }
+      }
+    ]);
+
+    if (!conversation || conversation.length === 0) {
+      return res.status(404).json({ message: "No group chat found for this opportunity" });
+    }
+
+    res.json(conversation[0]);
+  } catch (err) {
+    console.error("Error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+//----------------------------------------------------
+// 12. Get Participants of a Group Chat
+//----------------------------------------------------
+router.get("/group/:conversationId/participants", async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+
+    const conversation = await Conversation.aggregate([
+      { $match: { _id: new mongoose.Types.ObjectId(conversationId) } },
+      {
+        $lookup: {
+          from: "profiles",
+          localField: "participants",
+          foreignField: "userId",
+          as: "participantProfiles"
+        }
+      },
+      {
+        $project: {
+          participants: 1,
+          participantProfiles: {
+            _id: 1,
+            userId: 1,
+            Name: 1,
+            profilePicture: 1,
+            bio: 1
+          }
+        }
+      }
+    ]);
+
+    if (!conversation || conversation.length === 0) {
+      return res.status(404).json({ message: "Conversation not found" });
+    }
+
+    res.json(conversation[0]);
   } catch (err) {
     console.error("Error:", err);
     res.status(500).json({ message: "Server error" });
