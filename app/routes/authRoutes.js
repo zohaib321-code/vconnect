@@ -219,23 +219,35 @@ router.post('/organization/request-otp', async (req, res) => {
       await otpRecord.save();
     }
 
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false,
-      service: 'gmail',
-      auth: {
-        user: 'amitammi24@gmail.com',
-        pass: 'bteo chnd kmoa sawg',
-      },
-    });
+    const sgMail = require('@sendgrid/mail');
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-    await transporter.sendMail({
-      from: 'amitammi24@gmail.com',
+    const msg = {
       to: email,
+      from: 'amitammi24@gmail.com',
       subject: 'Organization Signup OTP',
       text: `Your OTP is: ${otp}`,
-    });
+    };
+
+    await sgMail.send(msg);
+
+    // const transporter = nodemailer.createTransport({
+    //   host: 'smtp.gmail.com',
+    //   port: 587,
+    //   secure: false,
+    //   service: 'gmail',
+    //   auth: {
+    //     user: 'amitammi24@gmail.com',
+    //     pass: 'bteo chnd kmoa sawg',
+    //   },
+    // });
+
+    // await transporter.sendMail({
+    //   from: 'amitammi24@gmail.com',
+    //   to: email,
+    //   subject: 'Organization Signup OTP',
+    //   text: `Your OTP is: ${otp}`,
+    // });
 
     res.status(200).json({ message: 'OTP sent successfully to email' });
   } catch (error) {
