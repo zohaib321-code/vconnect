@@ -36,4 +36,6 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+ACTIVITY_INTEGRATION_GUIDE.md
+ORGANIZATION_API_REFERENCE.md
 app-example
