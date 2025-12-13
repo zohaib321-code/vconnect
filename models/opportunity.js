@@ -57,7 +57,7 @@ const opportunitySchema = new Schema({
         required: true
     },
     tags: {
-        type: [String], 
+        type: [String],
         required: false
     },
     dateTime: [{
@@ -75,6 +75,15 @@ const opportunitySchema = new Schema({
         }
     }]
 }, { timestamps: true });
+
+// Add status field
+opportunitySchema.add({
+    status: {
+        type: String,
+        enum: ['upcoming', 'started', 'ended', 'cancelled'],
+        default: 'upcoming'
+    }
+});
 
 // Geospatial index
 opportunitySchema.index({ location: '2dsphere' });
