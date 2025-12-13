@@ -56,10 +56,50 @@ router.get("/conversations/:userId", async (req, res) => {
       { $sort: { updatedAt: -1 } },
       {
         $lookup: {
-          from: "profiles", // Profile collection
-          localField: "participants", // user IDs in conversation
-          foreignField: "userId", // Profile.userId
-          as: "participantProfiles",
+          from: "profiles", // User Profile collection
+          localField: "participants",
+          foreignField: "userId",
+          as: "userProfiles",
+        },
+      },
+      {
+        $lookup: {
+          from: "organizationprofiles", // Organization Profile collection
+          localField: "participants",
+          foreignField: "userId",
+          as: "orgProfiles",
+        },
+      },
+      {
+        $addFields: {
+          participantProfiles: {
+            $concatArrays: [
+              {
+                $map: {
+                  input: "$userProfiles",
+                  as: "profile",
+                  in: {
+                    _id: "$$profile._id",
+                    userId: "$$profile.userId",
+                    Name: "$$profile.Name",
+                    profilePicture: "$$profile.profilePicture",
+                  },
+                },
+              },
+              {
+                $map: {
+                  input: "$orgProfiles",
+                  as: "profile",
+                  in: {
+                    _id: "$$profile._id",
+                    userId: "$$profile.userId",
+                    Name: "$$profile.orgName", // Map orgName to Name
+                    profilePicture: "$$profile.profilePicture",
+                  },
+                },
+              },
+            ],
+          },
         },
       },
       {
@@ -71,12 +111,7 @@ router.get("/conversations/:userId", async (req, res) => {
           opportunityId: 1,
           unreadCounts: 1,
           updatedAt: 1,
-          participantProfiles: {
-            _id: 1,
-            userId: 1,
-            Name: 1,
-            profilePicture: 1,
-          },
+          participantProfiles: 1,
         },
       },
     ]);
@@ -100,7 +135,47 @@ router.get("/conversation/:conversationId", async (req, res) => {
           from: "profiles",
           localField: "participants",
           foreignField: "userId",
-          as: "participantProfiles",
+          as: "userProfiles",
+        },
+      },
+      {
+        $lookup: {
+          from: "organizationprofiles",
+          localField: "participants",
+          foreignField: "userId",
+          as: "orgProfiles",
+        },
+      },
+      {
+        $addFields: {
+          participantProfiles: {
+            $concatArrays: [
+              {
+                $map: {
+                  input: "$userProfiles",
+                  as: "profile",
+                  in: {
+                    _id: "$$profile._id",
+                    userId: "$$profile.userId",
+                    Name: "$$profile.Name",
+                    profilePicture: "$$profile.profilePicture",
+                  },
+                },
+              },
+              {
+                $map: {
+                  input: "$orgProfiles",
+                  as: "profile",
+                  in: {
+                    _id: "$$profile._id",
+                    userId: "$$profile.userId",
+                    Name: "$$profile.orgName",
+                    profilePicture: "$$profile.profilePicture",
+                  },
+                },
+              },
+            ],
+          },
         },
       },
       {
@@ -112,12 +187,7 @@ router.get("/conversation/:conversationId", async (req, res) => {
           opportunityId: 1,
           unreadCounts: 1,
           updatedAt: 1,
-          participantProfiles: {
-            _id: 1,
-            userId: 1,
-            Name: 1,
-            profilePicture: 1,
-          },
+          participantProfiles: 1,
         },
       },
     ]);
@@ -166,6 +236,7 @@ router.post("/message", async (req, res) => {
 
     const User = require("../../models/user");
     const Profile = require("../../models/userProfile");
+    const OrgProfile = require("../../models/orgProfile");
     const { sendNewMessageNotification } = require("../utils/pushNotificationService");
     const { activeUsers } = require("../socketHandler");
 
@@ -200,7 +271,18 @@ router.post("/message", async (req, res) => {
     await conversation.save();
 
     // Get sender's profile to include Name field
-    const senderProfile = await Profile.findOne({ userId: sender }).select('Name profilePicture');
+    let senderProfile = await Profile.findOne({ userId: sender }).select('Name profilePicture');
+
+    // If not found in UserProfile, check OrgProfile
+    if (!senderProfile) {
+      const orgProfile = await OrgProfile.findOne({ userId: sender }).select('orgName profilePicture');
+      if (orgProfile) {
+        senderProfile = {
+          Name: orgProfile.orgName,
+          profilePicture: orgProfile.profilePicture
+        };
+      }
+    }
 
     // Populate sender info from User model
     const populatedMessage = await Message.findById(message._id)
@@ -492,7 +574,15 @@ router.get("/group/:opportunityId", async (req, res) => {
           from: "profiles",
           localField: "participants",
           foreignField: "userId",
-          as: "participantProfiles"
+          as: "userProfiles"
+        }
+      },
+      {
+        $lookup: {
+          from: "organizationprofiles",
+          localField: "participants",
+          foreignField: "userId",
+          as: "orgProfiles"
         }
       },
       {
@@ -504,6 +594,38 @@ router.get("/group/:opportunityId", async (req, res) => {
         }
       },
       {
+        $addFields: {
+          participantProfiles: {
+            $concatArrays: [
+              {
+                $map: {
+                  input: "$userProfiles",
+                  as: "profile",
+                  in: {
+                    _id: "$$profile._id",
+                    userId: "$$profile.userId",
+                    Name: "$$profile.Name",
+                    profilePicture: "$$profile.profilePicture"
+                  }
+                }
+              },
+              {
+                $map: {
+                  input: "$orgProfiles",
+                  as: "profile",
+                  in: {
+                    _id: "$$profile._id",
+                    userId: "$$profile.userId",
+                    Name: "$$profile.orgName",
+                    profilePicture: "$$profile.profilePicture"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
         $project: {
           participants: 1,
           lastMessage: 1,
@@ -512,12 +634,7 @@ router.get("/group/:opportunityId", async (req, res) => {
           opportunityId: 1,
           unreadCounts: 1,
           updatedAt: 1,
-          participantProfiles: {
-            _id: 1,
-            userId: 1,
-            Name: 1,
-            profilePicture: 1
-          },
+          participantProfiles: 1,
           opportunity: { $arrayElemAt: ["$opportunity", 0] }
         }
       }
@@ -548,19 +665,55 @@ router.get("/group/:conversationId/participants", async (req, res) => {
           from: "profiles",
           localField: "participants",
           foreignField: "userId",
-          as: "participantProfiles"
+          as: "userProfiles"
+        }
+      },
+      {
+        $lookup: {
+          from: "organizationprofiles",
+          localField: "participants",
+          foreignField: "userId",
+          as: "orgProfiles"
+        }
+      },
+      {
+        $addFields: {
+          participantProfiles: {
+            $concatArrays: [
+              {
+                $map: {
+                  input: "$userProfiles",
+                  as: "profile",
+                  in: {
+                    _id: "$$profile._id",
+                    userId: "$$profile.userId",
+                    Name: "$$profile.Name",
+                    profilePicture: "$$profile.profilePicture",
+                    bio: "$$profile.bio"
+                  }
+                }
+              },
+              {
+                $map: {
+                  input: "$orgProfiles",
+                  as: "profile",
+                  in: {
+                    _id: "$$profile._id",
+                    userId: "$$profile.userId",
+                    Name: "$$profile.orgName",
+                    profilePicture: "$$profile.profilePicture",
+                    bio: "$$profile.aboutOrg"
+                  }
+                }
+              }
+            ]
+          }
         }
       },
       {
         $project: {
           participants: 1,
-          participantProfiles: {
-            _id: 1,
-            userId: 1,
-            Name: 1,
-            profilePicture: 1,
-            bio: 1
-          }
+          participantProfiles: 1
         }
       }
     ]);
