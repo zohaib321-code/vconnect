@@ -200,12 +200,12 @@ router.get('/user/:userId', async (req, res) => {
 
             if (profileData) {
                 reviewObj.reviewerDetails = {
-                    name: profileData.name || profileData.orgName || review.reviewerId.name,
+                    name: profileData.Name || profileData.orgName || "Unknown",
                     image: profileData.profilePicture || null
                 };
             } else {
                 reviewObj.reviewerDetails = {
-                    name: review.reviewerId ? review.reviewerId.name : "Unknown",
+                    name: "Unknown",
                     image: null
                 };
             }
@@ -244,12 +244,12 @@ router.get('/opportunity/:opportunityId', async (req, res) => {
 
             if (profileData) {
                 reviewObj.reviewerDetails = {
-                    name: profileData.Name || profileData.orgName || review.reviewerId.name,
+                    name: profileData.Name || profileData.orgName || "Unknown",
                     image: profileData.profilePicture || null
                 };
             } else {
                 reviewObj.reviewerDetails = {
-                    name: review.reviewerId ? review.reviewerId.name : "Unknown",
+                    name: "Unknown",
                     image: null
                 };
             }
@@ -296,12 +296,12 @@ router.get('/organization/:userId', async (req, res) => {
 
             if (profileData) {
                 reviewObj.reviewerDetails = {
-                    name: profileData.name || review.reviewerId.name,
+                    name: profileData.Name || "Unknown",
                     image: profileData.profilePicture || null
                 };
             } else {
                 reviewObj.reviewerDetails = {
-                    name: review.reviewerId ? review.reviewerId.name : "Unknown",
+                    name: "Unknown",
                     image: null
                 };
             }
