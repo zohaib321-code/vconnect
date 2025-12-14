@@ -181,37 +181,44 @@ router.get('/user/:userId', async (req, res) => {
 
         // Fetch reviews where the user is the reviewee
         const reviews = await Review.find({ revieweeId: userId })
-            .populate('reviewerId', 'name email') // Basic user details
+            .populate({
+                path: 'reviewerId',
+                select: 'name email',
+                populate: [
+                    { path: 'profile', select: 'Name profilePicture' },
+                    { path: 'organizationProfile', select: 'orgName profilePicture' }
+                ]
+            }) // Basic user details + profiles
             .populate('opportunityId', 'title')
             .sort({ createdAt: -1 });
 
-        // Manually populate extra profile details (photo, etc) based on reviewer type
-        const populatedReviews = await Promise.all(reviews.map(async (review) => {
+        // Map details based on reviewer type
+        const populatedReviews = reviews.map((review) => {
             const reviewObj = review.toObject();
+            const reviewer = review.reviewerId;
 
-            let profileData = null;
-            if (review.type === 'userToOrg') {
-                // If the review is userToOrg, the reviewer is a USER. Fetch UserProfile.
-                profileData = await UserProfile.findOne({ userId: review.reviewerId._id });
-            } else {
-                // If the review is orgToUser, the reviewer is an ORG. Fetch OrgProfile.
-                profileData = await OrgProfile.findOne({ userId: review.reviewerId._id });
+            let name = "Unknown";
+            let image = null;
+
+            if (reviewer) {
+                if (review.type === 'userToOrg') {
+                    // Reviewer is User -> Use UserProfile
+                    if (reviewer.profile) {
+                        name = reviewer.profile.Name || "Unknown";
+                        image = reviewer.profile.profilePicture || null;
+                    }
+                } else {
+                    // Reviewer is Org -> Use OrgProfile
+                    if (reviewer.organizationProfile) {
+                        name = reviewer.organizationProfile.orgName || "Unknown";
+                        image = reviewer.organizationProfile.profilePicture || null;
+                    }
+                }
             }
 
-            if (profileData) {
-                reviewObj.reviewerDetails = {
-                    name: profileData.Name || profileData.orgName || "Unknown",
-                    image: profileData.profilePicture || null
-                };
-            } else {
-                reviewObj.reviewerDetails = {
-                    name: "Unknown",
-                    image: null
-                };
-            }
-
+            reviewObj.reviewerDetails = { name, image };
             return reviewObj;
-        }));
+        });
 
         res.status(200).json(populatedReviews);
 
@@ -227,35 +234,43 @@ router.get('/opportunity/:opportunityId', async (req, res) => {
         const { opportunityId } = req.params;
 
         const reviews = await Review.find({ opportunityId })
-            .populate('reviewerId', 'name email')
+            .populate({
+                path: 'reviewerId',
+                select: 'name email',
+                populate: [
+                    { path: 'profile', select: 'Name profilePicture' },
+                    { path: 'organizationProfile', select: 'orgName profilePicture' }
+                ]
+            })
             .populate('revieweeId', 'name email')
             .sort({ createdAt: -1 });
 
-        // Manually populate extra profile details (photo, etc) based on reviewer type
-        const populatedReviews = await Promise.all(reviews.map(async (review) => {
+        const populatedReviews = reviews.map((review) => {
             const reviewObj = review.toObject();
+            const reviewer = review.reviewerId;
 
-            let profileData = null;
-            if (review.type === 'userToOrg') { // Reviewer is User
-                profileData = await UserProfile.findOne({ userId: review.reviewerId._id });
-            } else { // Reviewer is Org
-                profileData = await OrgProfile.findOne({ userId: review.reviewerId._id });
+            let name = "Unknown";
+            let image = null;
+
+            if (reviewer) {
+                if (review.type === 'userToOrg') {
+                    // Reviewer is User -> Use UserProfile
+                    if (reviewer.profile) {
+                        name = reviewer.profile.Name || "Unknown";
+                        image = reviewer.profile.profilePicture || null;
+                    }
+                } else {
+                    // Reviewer is Org -> Use OrgProfile
+                    if (reviewer.organizationProfile) {
+                        name = reviewer.organizationProfile.orgName || "Unknown";
+                        image = reviewer.organizationProfile.profilePicture || null;
+                    }
+                }
             }
 
-            if (profileData) {
-                reviewObj.reviewerDetails = {
-                    name: profileData.Name || profileData.orgName || "Unknown",
-                    image: profileData.profilePicture || null
-                };
-            } else {
-                reviewObj.reviewerDetails = {
-                    name: "Unknown",
-                    image: null
-                };
-            }
-
+            reviewObj.reviewerDetails = { name, image };
             return reviewObj;
-        }));
+        });
 
         res.status(200).json(populatedReviews);
 
@@ -284,30 +299,34 @@ router.get('/organization/:userId', async (req, res) => {
             opportunityId: { $in: opportunityIds },
             type: 'userToOrg'
         })
-            .populate('reviewerId', 'name email')
+            .populate({
+                path: 'reviewerId',
+                select: 'name email',
+                populate: [
+                    { path: 'profile', select: 'Name profilePicture' },
+                    { path: 'organizationProfile', select: 'orgName profilePicture' }
+                ]
+            })
             .populate('opportunityId', 'title')
             .sort({ createdAt: -1 });
 
-        const populatedReviews = await Promise.all(reviews.map(async (review) => {
+        const populatedReviews = reviews.map((review) => {
             const reviewObj = review.toObject();
+            const reviewer = review.reviewerId;
 
-            // Reviewer is User (userToOrg)
-            const profileData = await UserProfile.findOne({ userId: review.reviewerId._id });
+            let name = "Unknown";
+            let image = null;
 
-            if (profileData) {
-                reviewObj.reviewerDetails = {
-                    name: profileData.Name || "Unknown",
-                    image: profileData.profilePicture || null
-                };
-            } else {
-                reviewObj.reviewerDetails = {
-                    name: "Unknown",
-                    image: null
-                };
+            if (reviewer) {
+                if (reviewer.profile) {
+                    name = reviewer.profile.Name || "Unknown";
+                    image = reviewer.profile.profilePicture || null;
+                }
             }
 
+            reviewObj.reviewerDetails = { name, image };
             return reviewObj;
-        }));
+        });
 
         res.status(200).json(populatedReviews);
 

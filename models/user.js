@@ -50,6 +50,28 @@ userSchema.pre('save', async function (next) {
     next();
 });
 
+const UserString = 'User';
+
+// Virtual for UserProfile
+userSchema.virtual('profile', {
+    ref: 'Profile',
+    localField: '_id',
+    foreignField: 'userId',
+    justOne: true
+});
+
+// Virtual for OrganizationProfile
+userSchema.virtual('organizationProfile', {
+    ref: 'OrganizationProfile',
+    localField: '_id',
+    foreignField: 'userId',
+    justOne: true
+});
+
+// Ensure virtuals are included
+userSchema.set('toObject', { virtuals: true });
+userSchema.set('toJSON', { virtuals: true });
+
 const User = mongoose.model('User', userSchema);
 
 module.exports = User;
