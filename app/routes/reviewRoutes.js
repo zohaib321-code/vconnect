@@ -65,6 +65,13 @@ router.post('/create', async (req, res) => {
             return res.status(400).json({ message: "User is not an accepted participant of this opportunity" });
         }
 
+        // 2.5 Validation: Consistency check for userToOrg
+        if (type === 'userToOrg') {
+            if (revieweeId !== opportunity.userId.toString()) {
+                return res.status(400).json({ message: "For userToOrg reviews, revieweeId must match the Opportunity creator (Organization)." });
+            }
+        }
+
         // 3. Create Review
         const newReview = new Review({
             reviewerId,
@@ -172,6 +179,7 @@ router.get('/user/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
 
+        // Fetch reviews where the user is the reviewee
         const reviews = await Review.find({ revieweeId: userId })
             .populate('reviewerId', 'name email') // Basic user details
             .populate('opportunityId', 'title')
@@ -181,15 +189,12 @@ router.get('/user/:userId', async (req, res) => {
         const populatedReviews = await Promise.all(reviews.map(async (review) => {
             const reviewObj = review.toObject();
 
-            // If reviewer was an Org (type orgToUser), fetch OrgProfile?
-            // Actually, reviewer is always a User ID. 
-            // If type is 'userToOrg', reviewer is a regular user -> fetch UserProfile
-            // If type is 'orgToUser', reviewer is an Org (User ID) -> fetch OrgProfile
-
             let profileData = null;
             if (review.type === 'userToOrg') {
+                // If the review is userToOrg, the reviewer is a USER. Fetch UserProfile.
                 profileData = await UserProfile.findOne({ userId: review.reviewerId._id });
             } else {
+                // If the review is orgToUser, the reviewer is an ORG. Fetch OrgProfile.
                 profileData = await OrgProfile.findOne({ userId: review.reviewerId._id });
             }
 
@@ -200,7 +205,7 @@ router.get('/user/:userId', async (req, res) => {
                 };
             } else {
                 reviewObj.reviewerDetails = {
-                    name: review.reviewerId.name || "Unknown",
+                    name: review.reviewerId ? review.reviewerId.name : "Unknown",
                     image: null
                 };
             }
@@ -213,6 +218,102 @@ router.get('/user/:userId', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: "Error fetching reviews" });
+    }
+});
+
+// GET /opportunity/:opportunityId - Get all reviews for a specific opportunity
+router.get('/opportunity/:opportunityId', async (req, res) => {
+    try {
+        const { opportunityId } = req.params;
+
+        const reviews = await Review.find({ opportunityId })
+            .populate('reviewerId', 'name email')
+            .populate('revieweeId', 'name email')
+            .sort({ createdAt: -1 });
+
+        // Manually populate extra profile details (photo, etc) based on reviewer type
+        const populatedReviews = await Promise.all(reviews.map(async (review) => {
+            const reviewObj = review.toObject();
+
+            let profileData = null;
+            if (review.type === 'userToOrg') { // Reviewer is User
+                profileData = await UserProfile.findOne({ userId: review.reviewerId._id });
+            } else { // Reviewer is Org
+                profileData = await OrgProfile.findOne({ userId: review.reviewerId._id });
+            }
+
+            if (profileData) {
+                reviewObj.reviewerDetails = {
+                    name: profileData.name || profileData.orgName || review.reviewerId.name,
+                    image: profileData.profilePicture || null
+                };
+            } else {
+                reviewObj.reviewerDetails = {
+                    name: review.reviewerId ? review.reviewerId.name : "Unknown",
+                    image: null
+                };
+            }
+
+            return reviewObj;
+        }));
+
+        res.status(200).json(populatedReviews);
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Error fetching opportunity reviews" });
+    }
+});
+
+// GET /organization/:userId - Get reviews about an organization (via their opportunities)
+router.get('/organization/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        // 1. Find all opportunities created by this organization
+        const opportunities = await Opportunity.find({ userId: userId }).select('_id');
+        const opportunityIds = opportunities.map(op => op._id);
+
+        if (opportunityIds.length === 0) {
+            return res.status(200).json([]); // No opportunities, so no reviews
+        }
+
+        // 2. Find reviews for these opportunities where type is 'userToOrg'
+        // This ensures we get reviews written BY users ABOUT this org context
+        const reviews = await Review.find({
+            opportunityId: { $in: opportunityIds },
+            type: 'userToOrg'
+        })
+            .populate('reviewerId', 'name email')
+            .populate('opportunityId', 'title')
+            .sort({ createdAt: -1 });
+
+        const populatedReviews = await Promise.all(reviews.map(async (review) => {
+            const reviewObj = review.toObject();
+
+            // Reviewer is User (userToOrg)
+            const profileData = await UserProfile.findOne({ userId: review.reviewerId._id });
+
+            if (profileData) {
+                reviewObj.reviewerDetails = {
+                    name: profileData.name || review.reviewerId.name,
+                    image: profileData.profilePicture || null
+                };
+            } else {
+                reviewObj.reviewerDetails = {
+                    name: review.reviewerId ? review.reviewerId.name : "Unknown",
+                    image: null
+                };
+            }
+
+            return reviewObj;
+        }));
+
+        res.status(200).json(populatedReviews);
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Error fetching organization reviews" });
     }
 });
 
