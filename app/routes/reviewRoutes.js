@@ -244,7 +244,7 @@ router.get('/opportunity/:opportunityId', async (req, res) => {
 
             if (profileData) {
                 reviewObj.reviewerDetails = {
-                    name: profileData.name || profileData.orgName || review.reviewerId.name,
+                    name: profileData.Name || profileData.orgName || review.reviewerId.name,
                     image: profileData.profilePicture || null
                 };
             } else {
