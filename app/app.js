@@ -23,7 +23,7 @@ app.use(cors());
 app.use(express.json());
 
 const dburi = "mongodb+srv://vcon_user:vcon_pass@vconnect.8ot7y.mongodb.net/vConnect?retryWrites=true&w=majority&appName=vConnect";
-mongoose.connect(dburi, { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose.connect(dburi)
   .then(() => {
     console.log("Connected to MongoDB");
 
