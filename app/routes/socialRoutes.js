@@ -62,7 +62,7 @@ router.post('/followers', async (req, res) => {
             .populate({
                 path: 'follower',
                 model: 'Profile',
-                select: 'name email profilePicture userId',
+                select: 'Name email profilePicture userId',
                 localField: 'follower',
                 foreignField: 'userId',
             });
