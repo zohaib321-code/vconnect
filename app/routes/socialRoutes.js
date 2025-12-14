@@ -229,19 +229,28 @@ router.post('/friends', async (req, res) => {
 });
 
 // Get pending friend requests for a user
+// Get friend requests (Incoming and Outgoing)
 router.post('/friend-requests', async (req, res) => {
     const { userId } = req.body;
     if (!userId) return res.status(400).json({ error: 'userId is required' });
 
     try {
-        const requests = await Friendship.find({ recipient: userId, status: 'pending' })
-            .populate({
-                path: 'requester',
-                model: 'Profile',
-                select: 'name email profilePicture userId',
-                localField: 'requester',
-                foreignField: 'userId'
-            });
+        const requests = await Friendship.find({ 
+            $or: [
+                { recipient: userId, status: 'pending' },
+                { requester: userId, status: 'pending' }
+            ]
+        })
+        .populate({
+            path: 'requester',
+            model: 'Profile',
+            select: 'name email profilePicture userId' // adjust fields if needed
+        })
+        .populate({
+            path: 'recipient', // You must also populate recipient for Outgoing to work
+            model: 'Profile',
+            select: 'name email profilePicture userId'
+        });
 
         res.status(200).json({ requests });
     } catch (error) {
