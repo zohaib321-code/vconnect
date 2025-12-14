@@ -13,6 +13,7 @@ const socialRoutes = require('./routes/socialRoutes');
 const communityRoutes = require('./routes/communityRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const organizationRoutes = require('./routes/organizationRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
 
 const app = express();
 const port = 5000;
@@ -78,3 +79,4 @@ app.use('/oppRegistration', oppRegistrationRoutes);
 app.use('/orgProfile', orgProfileRoutes);
 app.use('/community', communityRoutes);
 app.use('/api/organization', organizationRoutes);
+app.use('/reviews', reviewRoutes);

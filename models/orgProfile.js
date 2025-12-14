@@ -18,7 +18,7 @@ const org_profileSchema = new Schema({
         required: false,
         default: ""
     },
-    publicPhone:{
+    publicPhone: {
         type: String,
         required: false,
         default: ""
@@ -49,7 +49,7 @@ const org_profileSchema = new Schema({
         required: false,
         default: ""
     },
-    
+
     interests: {
         type: [String], // Array of causes (strings)
         required: false
@@ -59,8 +59,15 @@ const org_profileSchema = new Schema({
         required: false,
         default: false // Default to false if not specified
     },
-    
-}, {timestamps: true});
+    averageRating: {
+        type: Number,
+        default: 0
+    },
+    reviewCount: {
+        type: Number,
+        default: 0
+    }
+}, { timestamps: true });
 
 const OrgProfile = mongoose.model('OrganizationProfile', org_profileSchema);
 
