@@ -167,52 +167,84 @@ router.post('/batch', async (req, res) => {
     }
 });
 
-// GET /user/:userId - Get reviews for a user/org with populated details
-router.get('/user/:userId', async (req, res) => {
+// POST /batch - Create multiple reviews (Org -> Users)
+router.post('/batch', async (req, res) => {
     try {
-        const { userId } = req.params;
+        const { reviews, opportunityId } = req.body;
+        const reviewerId = req.user.userId;
 
-        const reviews = await Review.find({ revieweeId: userId })
-            .populate('reviewerId', 'name email') // Basic user details
-            .populate('opportunityId', 'title')
-            .sort({ createdAt: -1 });
+        if (!Array.isArray(reviews) || reviews.length === 0) {
+            return res.status(400).json({ message: "No reviews provided" });
+        }
 
-        // Manually populate extra profile details (photo, etc) based on reviewer type
-        const populatedReviews = await Promise.all(reviews.map(async (review) => {
-            const reviewObj = review.toObject();
+        const opportunity = await Opportunity.findById(opportunityId);
+        if (!opportunity || opportunity.status !== 'ended') {
+            return res.status(400).json({ message: "Opportunity must be ended to submit reviews" });
+        }
 
-            // If reviewer was an Org (type orgToUser), fetch OrgProfile?
-            // Actually, reviewer is always a User ID. 
-            // If type is 'userToOrg', reviewer is a regular user -> fetch UserProfile
-            // If type is 'orgToUser', reviewer is an Org (User ID) -> fetch OrgProfile
+        const results = {
+            success: 0,
+            failed: 0,
+            errors: []
+        };
 
-            let profileData = null;
-            if (review.type === 'userToOrg') {
-                profileData = await UserProfile.findOne({ userId: review.reviewerId._id });
-            } else {
-                profileData = await OrgProfile.findOne({ userId: review.reviewerId._id });
+        for (const reviewData of reviews) {
+            // Add this validation
+            if (!reviewData.revieweeId || reviewData.revieweeId.toString().trim() === '') {
+                results.failed++;
+                results.errors.push(`Missing or empty revieweeId for review`);
+                continue;
             }
 
-            if (profileData) {
-                reviewObj.reviewerDetails = {
-                    name: profileData.name || profileData.orgName || review.reviewerId.name,
-                    image: profileData.profilePicture || null
-                };
-            } else {
-                reviewObj.reviewerDetails = {
-                    name: review.reviewerId.name || "Unknown",
-                    image: null
-                };
+            try {
+                const volunteerId = reviewData.revieweeId;
+
+                // Validate registration
+                const registration = await OppRegistration.findOne({
+                    userId: volunteerId,
+                    opportunityId: opportunityId,
+                    status: 'accepted'
+                });
+
+                if (!registration) {
+                    results.failed++;
+                    results.errors.push(`User ${volunteerId} verification failed`);
+                    continue;
+                }
+
+                // Check for existing review
+                const existing = await Review.findOne({ reviewerId, revieweeId: volunteerId, opportunityId });
+                if (existing) {
+                    results.failed++;
+                    results.errors.push(`User ${volunteerId} already reviewed`);
+                    continue;
+                }
+
+                // Create review
+                const newReview = new Review({
+                    reviewerId,
+                    revieweeId: volunteerId,
+                    opportunityId,
+                    rating: reviewData.rating,
+                    comment: reviewData.comment || '',
+                    type: 'orgToUser'
+                });
+
+                await newReview.save();
+                await updateProfileRating(volunteerId);
+                results.success++;
+
+            } catch (err) {
+                results.failed++;
+                results.errors.push(`Error for user ${reviewData.revieweeId}: ${err.message}`);
             }
+        }
 
-            return reviewObj;
-        }));
-
-        res.status(200).json(populatedReviews);
+        res.status(200).json({ message: "Batch processing complete", results });
 
     } catch (err) {
         console.error(err);
-        res.status(500).json({ message: "Error fetching reviews" });
+        res.status(500).json({ message: "Error processing batch reviews" });
     }
 });
 
