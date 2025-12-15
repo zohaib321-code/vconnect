@@ -91,81 +91,7 @@ router.post('/create', async (req, res) => {
     }
 });
 
-// POST /batch - Create multiple reviews (Org -> Users)
-router.post('/batch', async (req, res) => {
-    try {
-        const { reviews } = req.body; // Array of { revieweeId, rating, comment }
-        const { opportunityId } = req.body;
-        const reviewerId = req.user.userId;
 
-        if (!Array.isArray(reviews) || reviews.length === 0) {
-            return res.status(400).json({ message: "No reviews provided" });
-        }
-
-        const opportunity = await Opportunity.findById(opportunityId);
-        if (!opportunity || opportunity.status !== 'ended') {
-            return res.status(400).json({ message: "Opportunity must be ended to submit reviews" });
-        }
-
-        const results = {
-            success: 0,
-            failed: 0,
-            errors: []
-        };
-
-        for (const reviewData of reviews) {
-            try {
-                // Determine volunteer ID (reviewee)
-                const volunteerId = reviewData.revieweeId;
-
-                // Validate registration
-                const registration = await OppRegistration.findOne({
-                    userId: volunteerId,
-                    opportunityId: opportunityId,
-                    status: 'accepted'
-                });
-
-                if (!registration) {
-                    results.failed++;
-                    results.errors.push(`User ${volunteerId} verification failed`);
-                    continue;
-                }
-
-                // Create Review
-                // Check for existing first to avoid error throw loop? rely on unique index catch
-                const existing = await Review.findOne({ reviewerId, revieweeId: volunteerId, opportunityId });
-                if (existing) {
-                    results.failed++;
-                    results.errors.push(`User ${volunteerId} already reviewed`);
-                    continue;
-                }
-
-                const newReview = new Review({
-                    reviewerId,
-                    revieweeId: volunteerId,
-                    opportunityId,
-                    rating: reviewData.rating,
-                    comment: reviewData.comment,
-                    type: 'orgToUser'
-                });
-
-                await newReview.save();
-                await updateProfileRating(volunteerId);
-                results.success++;
-
-            } catch (err) {
-                results.failed++;
-                results.errors.push(`Error for user ${reviewData.revieweeId}: ${err.message}`);
-            }
-        }
-
-        res.status(200).json({ message: "Batch processing complete", results });
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: "Error processing batch reviews" });
-    }
-});
 
 // POST /batch - Create multiple reviews (Org -> Users)
 router.post('/batch', async (req, res) => {
@@ -245,6 +171,54 @@ router.post('/batch', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: "Error processing batch reviews" });
+    }
+});
+
+// GET /check/:opportunityId/:revieweeId - Check if user has already reviewed
+router.get('/check/:opportunityId/:revieweeId', async (req, res) => {
+    try {
+        const { opportunityId, revieweeId } = req.params;
+        const reviewerId = req.user.userId; // ✅ From JWT - cannot be spoofed
+
+        const review = await Review.findOne({
+            reviewerId,
+            revieweeId,
+            opportunityId
+        });
+
+        if (review) {
+            return res.status(200).json({
+                hasReviewed: true,
+                review: {
+                    rating: review.rating,
+                    comment: review.comment,
+                    createdAt: review.createdAt
+                }
+            });
+        }
+
+        return res.status(200).json({ hasReviewed: false });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Error checking review status" });
+    }
+});
+
+// GET reviews for a specific opportunity (to check already rated volunteers)
+router.get('/opportunity/:opportunityId', async (req, res) => {
+    try {
+        const { opportunityId } = req.params;
+
+        const reviews = await Review.find({
+            opportunityId,
+            type: 'orgToUser'  // Only organization-to-volunteer reviews
+        }).select('revieweeId');  // Only need the volunteer ID
+
+        res.status(200).json(reviews);
+    } catch (error) {
+        console.error('Error fetching reviews for opportunity:', error);
+        res.status(500).json({ message: 'Server error' });
     }
 });
 

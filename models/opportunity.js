@@ -76,17 +76,33 @@ const opportunitySchema = new Schema({
     }]
 }, { timestamps: true });
 
-// Add status field
+// Add status and moderation fields
 opportunitySchema.add({
     status: {
         type: String,
-        enum: ['upcoming', 'started', 'ended', 'cancelled'],
-        default: 'upcoming'
+        enum: ['pending', 'upcoming', 'started', 'ended', 'cancelled', 'rejected'],
+        default: 'pending'
+    },
+    flagged: {
+        type: Boolean,
+        default: false
+    },
+    flagReason: {
+        type: String,
+        required: false
+    },
+    applicantCount: {
+        type: Number,
+        default: 0
     }
 });
 
 // Geospatial index
 opportunitySchema.index({ location: '2dsphere' });
+
+// Performance indexes
+opportunitySchema.index({ status: 1, 'dateTime.date': 1 });
+opportunitySchema.index({ userId: 1 }); // For org's opportunities
 
 const Opportunity = mongoose.model('Opportunity', opportunitySchema);
 

@@ -63,6 +63,7 @@ router.get('/org/:orgId', async (req, res) => {
     const registrations = await OppRegistration.find()
       .populate({
         path: 'opportunityId',
+        select: 'title _id',
         populate: {
           path: 'userId', // org who created opportunity
           select: 'name email'
@@ -96,6 +97,7 @@ router.get('/org/:orgId', async (req, res) => {
             bloodGroup: profile?.bloodGroup || null,
             isBloodDonor: profile?.isBloodDonor || false
           },
+          opportunityId: r.opportunityId._id,
           opportunity: r.opportunityId.title,
           appliedAt: r.createdAt,
           status: r.status
@@ -112,11 +114,37 @@ router.get('/org/:orgId', async (req, res) => {
 });
 
 /* =========================================================
+   GET: Logged-in user's own registrations (JWT-based)
+   ========================================================= */
+router.get('/me', async (req, res) => {
+  try {
+    const userId = req.user.userId; // ✅ From JWT
+
+    const registrations = await OppRegistration.find({ userId })
+      .populate({
+        path: 'opportunityId',
+        populate: {
+          path: 'userId',
+          select: 'name email'
+        }
+      });
+
+    return res.status(200).json(registrations);
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      message: "Error fetching registrations"
+    });
+  }
+});
+
+/* =========================================================
    GET: User's own registrations
    ========================================================= */
 router.get('/', async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     const registrations = await OppRegistration.find({ userId })
       .populate('opportunityId');
@@ -128,6 +156,7 @@ router.get('/', async (req, res) => {
     return res.status(500).json({ message: "Error fetching registrations" });
   }
 });
+
 
 /* =========================================================
    DELETE: Withdraw application
