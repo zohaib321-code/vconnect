@@ -205,6 +205,60 @@ router.get('/check/:opportunityId/:revieweeId', async (req, res) => {
     }
 });
 
+// GET /user/:userId - Get reviews for a user/org with populated details
+router.get('/user/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        // Fetch reviews where the user is the reviewee
+        const reviews = await Review.find({ revieweeId: userId })
+            .populate({
+                path: 'reviewerId',
+                select: 'name email',
+                populate: [
+                    { path: 'profile', select: 'Name profilePicture' },
+                    { path: 'organizationProfile', select: 'orgName profilePicture' }
+                ]
+            }) // Basic user details + profiles
+            .populate('opportunityId', 'title')
+            .sort({ createdAt: -1 });
+
+        // Map details based on reviewer type
+        const populatedReviews = reviews.map((review) => {
+            const reviewObj = review.toObject();
+            const reviewer = review.reviewerId;
+
+            let name = "Unknown";
+            let image = null;
+
+            if (reviewer) {
+                if (review.type === 'userToOrg') {
+                    // Reviewer is User -> Use UserProfile
+                    if (reviewer.profile) {
+                        name = reviewer.profile.Name || "Unknown";
+                        image = reviewer.profile.profilePicture || null;
+                    }
+                } else {
+                    // Reviewer is Org -> Use OrgProfile
+                    if (reviewer.organizationProfile) {
+                        name = reviewer.organizationProfile.orgName || "Unknown";
+                        image = reviewer.organizationProfile.profilePicture || null;
+                    }
+                }
+            }
+
+            reviewObj.reviewerDetails = { name, image };
+            return reviewObj;
+        });
+
+        res.status(200).json(populatedReviews);
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Error fetching reviews" });
+    }
+});
+
 // GET reviews for a specific opportunity (to check already rated volunteers)
 router.get('/opportunity/:opportunityId', async (req, res) => {
     try {
