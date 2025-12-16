@@ -13,8 +13,7 @@ router.use(authMiddleware);
    ========================================================= */
 router.post('/', async (req, res) => {
   try {
-    const userId = req.user.id; // 🔥 NEVER trust client
-    const { opportunityId, status = "pending" } = req.body;
+    const { userId, opportunityId, status = "pending" } = req.body;
 
     const oppRegistration = await OppRegistration.create({
       opportunityId,
@@ -41,8 +40,7 @@ router.post('/', async (req, res) => {
    ========================================================= */
 router.post('/check', async (req, res) => {
   try {
-    const userId = req.user.id;
-    const { opportunityId } = req.body;
+    const { userId, opportunityId } = req.body;
 
     const exists = await OppRegistration.exists({ userId, opportunityId });
     return res.status(200).json({ isRegistered: !!exists });
@@ -118,7 +116,7 @@ router.get('/org/:orgId', async (req, res) => {
    ========================================================= */
 router.get('/me', async (req, res) => {
   try {
-    const userId = req.user.userId; // ✅ From JWT
+    const { userId } = req.body;
 
     const registrations = await OppRegistration.find({ userId })
       .populate({
@@ -171,7 +169,7 @@ router.get('/:userId', async (req, res) => {
    ========================================================= */
 router.get('/', async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const { userId } = req.body;
 
     const registrations = await OppRegistration.find({ userId })
       .populate('opportunityId');
