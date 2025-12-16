@@ -11,9 +11,9 @@ const {
  * GET /api/recommendations
  * Get personalized opportunity recommendations for volunteers
  */
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/:userId', authMiddleware, async (req, res) => {
     try {
-        const userId = req.user.userId;
+        const { userId } = req.params;
         const { limit, page, minScore } = req.query;
 
         const options = {
