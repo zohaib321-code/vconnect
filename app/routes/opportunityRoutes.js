@@ -3,57 +3,74 @@ const express = require('express');
 const router = express.Router();
 const Opportunity = require('../../models/opportunity');
 const UserProfile = require('../../models/userProfile');
-const OrgProfile = require('../../models/orgProfile')
-const { authMiddleware, authorize } = require('../../middleware/auth')
+const OrgProfile = require('../../models/orgProfile');
+const Verification = require('../../models/verification');
+const { authMiddleware, authorize } = require('../../middleware/auth');
+
 // POST route to create an opportunity
-router.post('/', authMiddleware, (req, res) => {
-  const {
-    userId,
-    postMedia,
-    title,
-    description,
-    purpose,
-    role,
-    additional_details,
-    location,
-    skillsRequired,
-    opportunityType,
-    dateTime,
-    tags
-  } = req.body;
+router.post('/', authMiddleware, async (req, res) => {
+  try {
+    const {
+      userId,
+      postMedia,
+      title,
+      description,
+      purpose,
+      role,
+      additional_details,
+      location,
+      skillsRequired,
+      opportunityType,
+      dateTime,
+      tags
+    } = req.body;
 
-  const opportunity = new Opportunity({
-    userId,
-    postMedia,
-    title,
-    description,
-    purpose,
-    role,
-    additional_details,
-    location: {
-      type: 'Point',
-      coordinates: [location.longitude, location.latitude],
-      address: location.address
-    },
-    skillsRequired,
-    opportunityType,
-    dateTime,
-    tags
-  });
-
-  opportunity.save()
-    .then((result) => {
-      res.status(200).json({
-        message: "Opportunity created successfully",
-        opportunity: result
-      });
-    })
-    .catch((err) => {
-      res.status(500).json({
-        message: "Error saving opportunity",
-        error: err
-      });
+    // ✅ Check if organization is verified
+    const verification = await Verification.findOne({
+      organizationId: userId,
+      status: 'approved'
     });
+
+    if (!verification) {
+      return res.status(403).json({
+        error: 'Organization not verified',
+        message: 'Please submit verification documents for admin approval before creating opportunities'
+      });
+    }
+
+    const opportunity = new Opportunity({
+      userId,
+      postMedia,
+      title,
+      description,
+      purpose,
+      role,
+      additional_details,
+      location: {
+        type: 'Point',
+        coordinates: [location.longitude, location.latitude],
+        address: location.address
+      },
+      skillsRequired,
+      opportunityType,
+      dateTime,
+      tags
+    });
+
+    const result = await opportunity.save();
+
+    res.status(200).json({
+      message: "Opportunity created successfully",
+      opportunity: result
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      message: "Error saving opportunity",
+      error: err
+    });
+  }
 });
 
 // PUT route to update an opportunity
