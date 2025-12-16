@@ -142,6 +142,11 @@ router.post('/authWithMail', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // block suspended users
+    if (user.status === 'suspended') {
+      return res.status(401).json({ error: 'User is suspended, please contact helpline' });
+    }
+
     const isHashed = user.password.startsWith('$2');
     const isMatch = isHashed
       ? await bcrypt.compare(password, user.password)
