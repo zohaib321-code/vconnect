@@ -16,6 +16,8 @@ const organizationRoutes = require('./routes/organizationRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const recommendationRoutes = require('./routes/recommendationRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const verificationRoutes = require('./routes/verificationRoutes');
+const adminVerificationRoutes = require('./routes/adminVerificationRoutes');
 
 const app = express();
 const port = 5000;
@@ -84,3 +86,5 @@ app.use('/api/organization', organizationRoutes);
 app.use('/reviews', reviewRoutes);
 app.use('/api/recommendations', recommendationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/organization/verification', verificationRoutes);
+app.use('/api/admin', adminVerificationRoutes);
