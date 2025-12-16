@@ -40,6 +40,27 @@ const userSchema = new Schema({
     reviewCount: {
         type: Number,
         default: 0
+    },
+    status: {
+        type: String,
+        enum: ['active', 'suspended'],
+        default: 'active'
+    },
+    suspendedReason: {
+        type: String,
+        required: false
+    },
+    lastActive: {
+        type: Date,
+        default: Date.now
+    },
+    completedOpportunities: {
+        type: Number,
+        default: 0
+    },
+    totalHours: {
+        type: Number,
+        default: 0
     }
 }, { timestamps: true });
 

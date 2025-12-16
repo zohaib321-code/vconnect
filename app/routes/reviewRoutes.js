@@ -65,13 +65,6 @@ router.post('/create', async (req, res) => {
             return res.status(400).json({ message: "User is not an accepted participant of this opportunity" });
         }
 
-        // 2.5 Validation: Consistency check for userToOrg
-        if (type === 'userToOrg') {
-            if (revieweeId !== opportunity.userId.toString()) {
-                return res.status(400).json({ message: "For userToOrg reviews, revieweeId must match the Opportunity creator (Organization)." });
-            }
-        }
-
         // 3. Create Review
         const newReview = new Review({
             reviewerId,
@@ -98,11 +91,12 @@ router.post('/create', async (req, res) => {
     }
 });
 
+
+
 // POST /batch - Create multiple reviews (Org -> Users)
 router.post('/batch', async (req, res) => {
     try {
-        const { reviews } = req.body; // Array of { revieweeId, rating, comment }
-        const { opportunityId } = req.body;
+        const { reviews, opportunityId } = req.body;
         const reviewerId = req.user.userId;
 
         if (!Array.isArray(reviews) || reviews.length === 0) {
@@ -121,8 +115,14 @@ router.post('/batch', async (req, res) => {
         };
 
         for (const reviewData of reviews) {
+            // Add this validation
+            if (!reviewData.revieweeId || reviewData.revieweeId.toString().trim() === '') {
+                results.failed++;
+                results.errors.push(`Missing or empty revieweeId for review`);
+                continue;
+            }
+
             try {
-                // Determine volunteer ID (reviewee)
                 const volunteerId = reviewData.revieweeId;
 
                 // Validate registration
@@ -138,8 +138,7 @@ router.post('/batch', async (req, res) => {
                     continue;
                 }
 
-                // Create Review
-                // Check for existing first to avoid error throw loop? rely on unique index catch
+                // Check for existing review
                 const existing = await Review.findOne({ reviewerId, revieweeId: volunteerId, opportunityId });
                 if (existing) {
                     results.failed++;
@@ -147,12 +146,13 @@ router.post('/batch', async (req, res) => {
                     continue;
                 }
 
+                // Create review
                 const newReview = new Review({
                     reviewerId,
                     revieweeId: volunteerId,
                     opportunityId,
                     rating: reviewData.rating,
-                    comment: reviewData.comment,
+                    comment: reviewData.comment || '',
                     type: 'orgToUser'
                 });
 
@@ -174,165 +174,51 @@ router.post('/batch', async (req, res) => {
     }
 });
 
-// GET /user/:userId - Get reviews for a user/org with populated details
-router.get('/user/:userId', async (req, res) => {
+// GET /check/:opportunityId/:revieweeId - Check if user has already reviewed
+router.get('/check/:opportunityId/:revieweeId', async (req, res) => {
     try {
-        const { userId } = req.params;
+        const { opportunityId, revieweeId } = req.params;
+        const reviewerId = req.user.userId; // ✅ From JWT - cannot be spoofed
 
-        // Fetch reviews where the user is the reviewee
-        const reviews = await Review.find({ revieweeId: userId })
-            .populate({
-                path: 'reviewerId',
-                select: 'name email',
-                populate: [
-                    { path: 'profile', select: 'Name profilePicture' },
-                    { path: 'organizationProfile', select: 'orgName profilePicture' }
-                ]
-            }) // Basic user details + profiles
-            .populate('opportunityId', 'title')
-            .sort({ createdAt: -1 });
-
-        // Map details based on reviewer type
-        const populatedReviews = reviews.map((review) => {
-            const reviewObj = review.toObject();
-            const reviewer = review.reviewerId;
-
-            let name = "Unknown";
-            let image = null;
-
-            if (reviewer) {
-                if (review.type === 'userToOrg') {
-                    // Reviewer is User -> Use UserProfile
-                    if (reviewer.profile) {
-                        name = reviewer.profile.Name || "Unknown";
-                        image = reviewer.profile.profilePicture || null;
-                    }
-                } else {
-                    // Reviewer is Org -> Use OrgProfile
-                    if (reviewer.organizationProfile) {
-                        name = reviewer.organizationProfile.orgName || "Unknown";
-                        image = reviewer.organizationProfile.profilePicture || null;
-                    }
-                }
-            }
-
-            reviewObj.reviewerDetails = { name, image };
-            return reviewObj;
+        const review = await Review.findOne({
+            reviewerId,
+            revieweeId,
+            opportunityId
         });
 
-        res.status(200).json(populatedReviews);
+        if (review) {
+            return res.status(200).json({
+                hasReviewed: true,
+                review: {
+                    rating: review.rating,
+                    comment: review.comment,
+                    createdAt: review.createdAt
+                }
+            });
+        }
+
+        return res.status(200).json({ hasReviewed: false });
 
     } catch (err) {
         console.error(err);
-        res.status(500).json({ message: "Error fetching reviews" });
+        res.status(500).json({ message: "Error checking review status" });
     }
 });
 
-// GET /opportunity/:opportunityId - Get all reviews for a specific opportunity
+// GET reviews for a specific opportunity (to check already rated volunteers)
 router.get('/opportunity/:opportunityId', async (req, res) => {
     try {
         const { opportunityId } = req.params;
 
-        const reviews = await Review.find({ opportunityId })
-            .populate({
-                path: 'reviewerId',
-                select: 'name email',
-                populate: [
-                    { path: 'profile', select: 'Name profilePicture' },
-                    { path: 'organizationProfile', select: 'orgName profilePicture' }
-                ]
-            })
-            .populate('revieweeId', 'name email')
-            .sort({ createdAt: -1 });
-
-        const populatedReviews = reviews.map((review) => {
-            const reviewObj = review.toObject();
-            const reviewer = review.reviewerId;
-
-            let name = "Unknown";
-            let image = null;
-
-            if (reviewer) {
-                if (review.type === 'userToOrg') {
-                    // Reviewer is User -> Use UserProfile
-                    if (reviewer.profile) {
-                        name = reviewer.profile.Name || "Unknown";
-                        image = reviewer.profile.profilePicture || null;
-                    }
-                } else {
-                    // Reviewer is Org -> Use OrgProfile
-                    if (reviewer.organizationProfile) {
-                        name = reviewer.organizationProfile.orgName || "Unknown";
-                        image = reviewer.organizationProfile.profilePicture || null;
-                    }
-                }
-            }
-
-            reviewObj.reviewerDetails = { name, image };
-            return reviewObj;
-        });
-
-        res.status(200).json(populatedReviews);
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: "Error fetching opportunity reviews" });
-    }
-});
-
-// GET /organization/:userId - Get reviews about an organization (via their opportunities)
-router.get('/organization/:userId', async (req, res) => {
-    try {
-        const { userId } = req.params;
-
-        // 1. Find all opportunities created by this organization
-        const opportunities = await Opportunity.find({ userId: userId }).select('_id');
-        const opportunityIds = opportunities.map(op => op._id);
-
-        if (opportunityIds.length === 0) {
-            return res.status(200).json([]); // No opportunities, so no reviews
-        }
-
-        // 2. Find reviews for these opportunities where type is 'userToOrg'
-        // This ensures we get reviews written BY users ABOUT this org context
         const reviews = await Review.find({
-            opportunityId: { $in: opportunityIds },
-            type: 'userToOrg'
-        })
-            .populate({
-                path: 'reviewerId',
-                select: 'name email',
-                populate: [
-                    { path: 'profile', select: 'Name profilePicture' },
-                    { path: 'organizationProfile', select: 'orgName profilePicture' }
-                ]
-            })
-            .populate('opportunityId', 'title')
-            .sort({ createdAt: -1 });
+            opportunityId,
+            type: 'orgToUser'  // Only organization-to-volunteer reviews
+        }).select('revieweeId');  // Only need the volunteer ID
 
-        const populatedReviews = reviews.map((review) => {
-            const reviewObj = review.toObject();
-            const reviewer = review.reviewerId;
-
-            let name = "Unknown";
-            let image = null;
-
-            if (reviewer) {
-                if (reviewer.profile) {
-                    name = reviewer.profile.Name || "Unknown";
-                    image = reviewer.profile.profilePicture || null;
-                }
-            }
-
-            reviewObj.reviewerDetails = { name, image };
-            return reviewObj;
-        });
-
-        res.status(200).json(populatedReviews);
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: "Error fetching organization reviews" });
+        res.status(200).json(reviews);
+    } catch (error) {
+        console.error('Error fetching reviews for opportunity:', error);
+        res.status(500).json({ message: 'Server error' });
     }
 });
 

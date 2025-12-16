@@ -38,6 +38,10 @@ const reviewSchema = new Schema({
 // Prevent duplicate reviews for the same opportunity context
 reviewSchema.index({ reviewerId: 1, revieweeId: 1, opportunityId: 1 }, { unique: true });
 
+// Performance indexes
+reviewSchema.index({ revieweeId: 1 }); // For fetching user's reviews
+reviewSchema.index({ opportunityId: 1 }); // For fetching opportunity reviews
+
 const Review = mongoose.model('Review', reviewSchema);
 
 module.exports = Review;

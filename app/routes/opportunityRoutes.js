@@ -124,16 +124,27 @@ router.put('/:id', authMiddleware, async (req, res) => {
 });
 
 // GET route to fetch all opportunities
-router.get('/', (req, res) => {
-  Opportunity.find()
-    .then((result) => {
-      res.send(result);
-    })
-    .catch((err) => {
-      console.log(err);
-      res.status(500).send('Error fetching opportunities');
+router.get('/', async (req, res) => {
+  try {
+    const now = new Date();
+
+    // ✅ Use $elemMatch for array queries
+    const opportunities = await Opportunity.find({
+      status: { $ne: 'ended' },
+      dateTime: {
+        $elemMatch: {
+          date: { $gte: now }
+        }
+      }
     });
+
+    res.status(200).json(opportunities);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error fetching opportunities' });
+  }
 });
+
 
 // GET route to fetch an opportunity by ID
 router.get('/:id', async (req, res) => {
@@ -204,6 +215,17 @@ router.post('/search', async (req, res) => {
       );
     }
 
+    // ✅ NEW: Filter out ended and past opportunities
+    const now = new Date();
+    opportunities = opportunities.filter(op => {
+      // Must have at least one future date slot
+      const hasFutureSlot = op.dateTime.some(slot => new Date(slot.date) >= now);
+      // Must not be ended
+      const isNotEnded = op.status !== 'ended';
+
+      return hasFutureSlot && isNotEnded;
+    });
+
     // Fetch org details for each opportunity
     const orgProfiles = await OrgProfile.find({
       userId: { $in: opportunities.map(op => op.userId) }
@@ -228,6 +250,22 @@ router.post('/search', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error fetching opportunities', error: err });
+  }
+
+
+});
+
+// GET route to fetch archived opportunities
+router.get('/archived', authMiddleware, async (req, res) => {
+  try {
+    const opportunities = await Opportunity.find({
+      status: 'ended'
+    }).sort({ 'dateTime.date': -1 }); // Most recent first
+
+    res.status(200).json(opportunities);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error fetching archived opportunities' });
   }
 });
 

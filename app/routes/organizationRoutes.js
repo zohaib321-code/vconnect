@@ -433,6 +433,45 @@ router.get('/stats', authMiddleware, async (req, res) => {
     }
 });
 
+// GET public organization profile by userId (orgId)
+router.get('/profile/:orgId', async (req, res) => {
+    try {
+        const { orgId } = req.params;
+
+        const orgProfile = await OrgProfile.findOne({ userId: orgId })
+            .select('orgName description profilePicture website socialLinks establishedYear')
+            .lean();
+
+        if (!orgProfile) {
+            return res.status(404).json({
+                success: false,
+                message: 'Organization profile not found'
+            });
+        }
+
+        // Optional: Add opportunity stats
+        const opportunitiesCount = await Opportunity.countDocuments({ userId: orgId });
+        const totalVolunteers = await OppRegistration.distinct('userId', {
+            opportunityId: { $in: await Opportunity.find({ userId: orgId }).distinct('_id') }
+        });
+
+        res.status(200).json({
+            success: true,
+            profile: {
+                ...orgProfile,
+                opportunitiesPosted: opportunitiesCount,
+                totalVolunteers: totalVolunteers.length
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching org profile:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error'
+        });
+    }
+});
+
 //----------------------------------------------------
 // 8. Get Volunteer Demographics
 //----------------------------------------------------
