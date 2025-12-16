@@ -140,6 +140,33 @@ router.get('/me', async (req, res) => {
 });
 
 /* =========================================================
+   GET: Get registrations by user ID (for saved opportunities)
+   ========================================================= */
+router.get('/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const registrations = await OppRegistration.find({ userId })
+      .populate({
+        path: 'opportunityId',
+        populate: {
+          path: 'userId',
+          select: 'name email'
+        }
+      });
+
+    return res.status(200).json(registrations);
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      message: "Error fetching registrations for user",
+      error: err.message
+    });
+  }
+});
+
+/* =========================================================
    GET: User's own registrations
    ========================================================= */
 router.get('/', async (req, res) => {
