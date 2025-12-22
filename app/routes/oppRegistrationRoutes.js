@@ -188,8 +188,7 @@ router.get('/', async (req, res) => {
    ========================================================= */
 router.delete('/', async (req, res) => {
   try {
-    const userId = req.user.id;
-    const { opportunityId } = req.body;
+    const { opportunityId, userId } = req.body;
 
     const result = await OppRegistration.findOneAndDelete({
       userId,
