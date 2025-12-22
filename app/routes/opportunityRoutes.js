@@ -18,7 +18,7 @@ router.post('/', authMiddleware, async (req, res) => {
       purpose,
       role,
       additional_details,
-      location,
+      //location,
       skillsRequired,
       opportunityType,
       dateTime,
@@ -46,11 +46,11 @@ router.post('/', authMiddleware, async (req, res) => {
       purpose,
       role,
       additional_details,
-      location: {
-        type: 'Point',
-        coordinates: [location.longitude, location.latitude],
-        address: location.address
-      },
+      // location: {
+      //   type: 'Point',
+      //   coordinates: [location.longitude, location.latitude],
+      //   address: location.address
+      // },
       skillsRequired,
       opportunityType,
       dateTime,
