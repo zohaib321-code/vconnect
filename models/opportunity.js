@@ -40,7 +40,7 @@ const opportunitySchema = new Schema({
         },
         coordinates: {
             type: [Number],
-            required: true
+            required: false
         },
         address: {
             type: String,
